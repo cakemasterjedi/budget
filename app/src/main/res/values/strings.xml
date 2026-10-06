@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Gig Budget</string>
+    <string name="listener_label">Gig Budget auto-import</string>
+</resources>
