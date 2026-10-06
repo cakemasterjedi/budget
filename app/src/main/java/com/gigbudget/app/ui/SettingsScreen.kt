@@ -1,8 +1,13 @@
 package com.gigbudget.app.ui
 
+import android.Manifest
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings as AndroidSettings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,6 +28,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -32,6 +38,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
@@ -39,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.gigbudget.app.BudgetViewModel
 import com.gigbudget.app.autoimport.MoneyNotificationListener
+import com.gigbudget.app.autoimport.ScoutNotifier
 import com.gigbudget.app.data.Money
 import com.gigbudget.app.data.Outcomes
 import com.gigbudget.app.data.Roles
@@ -141,6 +149,35 @@ fun SettingsScreen(vm: BudgetViewModel, modifier: Modifier) {
         items(apps, key = { it.packageName }) { app ->
             WatchedAppRow(app) { vm.setAppRole(app, it) }
             HorizontalDivider()
+        }
+
+        item {
+            val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+                vm.updateSettings { it.copy(scoutAlerts = granted) }
+            }
+            SectionCard("Savings Scout alerts", emoji = "🔔") {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "After pay comes in, get a heads-up with how much you can safely save.",
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = settings.scoutAlerts && ScoutNotifier.canPost(context),
+                        onCheckedChange = { on ->
+                            if (on && !ScoutNotifier.canPost(context) && Build.VERSION.SDK_INT >= 33) {
+                                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                vm.updateSettings { it.copy(scoutAlerts = on) }
+                            }
+                        },
+                    )
+                }
+                Text(
+                    "Works with auto-import. At most one alert every 3 hours.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         item {

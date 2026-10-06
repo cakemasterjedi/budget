@@ -65,7 +65,13 @@ private val tips = listOf(
 )
 
 @Composable
-fun DashboardScreen(vm: BudgetViewModel, modifier: Modifier, onOpenSettings: () -> Unit, onOpenPlan: () -> Unit) {
+fun DashboardScreen(
+    vm: BudgetViewModel,
+    modifier: Modifier,
+    onOpenSettings: () -> Unit,
+    onOpenPlan: () -> Unit,
+    onOpenGoals: () -> Unit,
+) {
     val incomes by vm.incomes.collectAsState()
     val expenses by vm.expenses.collectAsState()
     val goals by vm.goals.collectAsState()
@@ -132,6 +138,8 @@ fun DashboardScreen(vm: BudgetViewModel, modifier: Modifier, onOpenSettings: () 
                 addingExpense = Expense(category = Categories.PREROLL, amountCents = settings.lastPrerollPriceCents, date = now)
             }
         }
+
+        SavingsScoutCard(vm, onNeedGoal = onOpenGoals)
 
         if (!autoImportOn) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {

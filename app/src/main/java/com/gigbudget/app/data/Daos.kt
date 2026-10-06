@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface IncomeDao {
     @Query("SELECT * FROM income ORDER BY date DESC")
+    suspend fun list(): List<Income>
+
+    @Query("SELECT * FROM income ORDER BY date DESC")
     fun all(): Flow<List<Income>>
 
     /** Returns -1 when an auto-imported entry with the same dedupeKey already exists. */
@@ -33,6 +36,9 @@ interface IncomeDao {
 
 @Dao
 interface ExpenseDao {
+    @Query("SELECT * FROM expenses ORDER BY date DESC")
+    suspend fun list(): List<Expense>
+
     @Query("SELECT * FROM expenses ORDER BY date DESC")
     fun all(): Flow<List<Expense>>
 
@@ -105,6 +111,9 @@ interface NotificationLogDao {
 
 @Dao
 interface DebtDao {
+    @Query("SELECT * FROM debts ORDER BY name")
+    suspend fun list(): List<Debt>
+
     @Query("SELECT * FROM debts ORDER BY balanceCents = 0, name")
     fun all(): Flow<List<Debt>>
 
@@ -123,6 +132,9 @@ interface DebtDao {
 
 @Dao
 interface BillDao {
+    @Query("SELECT * FROM bills ORDER BY dueDay")
+    suspend fun list(): List<Bill>
+
     @Query("SELECT * FROM bills ORDER BY dueDay, name")
     fun all(): Flow<List<Bill>>
 

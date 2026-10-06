@@ -11,7 +11,11 @@ import com.gigbudget.app.data.Roles
 import com.gigbudget.app.data.WatchedApp
 import java.util.concurrent.TimeUnit
 
-class AutoImporter(private val db: AppDatabase) {
+/** @param onIncomeAdded called after an auto-imported income is saved (used for Savings Scout alerts). */
+class AutoImporter(
+    private val db: AppDatabase,
+    private val onIncomeAdded: suspend (Income) -> Unit = {},
+) {
 
     suspend fun handle(
         packageName: String,
@@ -66,17 +70,16 @@ class AutoImporter(private val db: AppDatabase) {
                 countedByGigApp(app, result.incomeSource, postedAt)?.let { gigRole ->
                     return entry(amount, Outcomes.SKIPPED, "Already counted from your ${Roles.label(gigRole)} app")
                 }
-                db.incomeDao().insert(
-                    Income(
-                        source = result.incomeSource,
-                        amountCents = amount,
-                        date = postedAt,
-                        note = listOf("Auto: ${app.label}", result.merchant).filter { it.isNotBlank() }.joinToString(" · "),
-                        auto = true,
-                        dedupeKey = dedupeKey,
-                        sourcePackage = app.packageName,
-                    )
+                val income = Income(
+                    source = result.incomeSource,
+                    amountCents = amount,
+                    date = postedAt,
+                    note = listOf("Auto: ${app.label}", result.merchant).filter { it.isNotBlank() }.joinToString(" · "),
+                    auto = true,
+                    dedupeKey = dedupeKey,
+                    sourcePackage = app.packageName,
                 )
+                if (db.incomeDao().insert(income) != -1L) onIncomeAdded(income)
                 entry(amount, Outcomes.INCOME, "${result.incomeSource} income +${Money.format(amount)}")
             }
             NotificationParser.Kind.EXPENSE -> {

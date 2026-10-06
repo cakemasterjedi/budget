@@ -4,15 +4,19 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.gigbudget.app.data.Bill
+import com.gigbudget.app.data.BudgetMath
 import com.gigbudget.app.data.Categories
 import com.gigbudget.app.data.Debt
 import com.gigbudget.app.data.Expense
+import com.gigbudget.app.data.GoalCategory
 import com.gigbudget.app.data.Income
 import com.gigbudget.app.data.NotificationLog
 import com.gigbudget.app.data.SavingsGoal
 import com.gigbudget.app.data.Settings
 import com.gigbudget.app.data.WatchedApp
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -30,6 +34,12 @@ class BudgetViewModel(app: Application) : AndroidViewModel(app) {
     val watchedApps = db.watchedAppDao().all().asState()
     val notificationLog = db.notificationLogDao().recent().asState()
     val settings: StateFlow<Settings> = budgetApp.settings.state
+
+    /** A goal milestone to celebrate (25 / 50 / 75 / 100%), shown once then cleared. */
+    data class Celebration(val goalName: String, val emoji: String, val percent: Int)
+    private val _celebration = MutableStateFlow<Celebration?>(null)
+    val celebration: StateFlow<Celebration?> = _celebration.asStateFlow()
+    fun celebrationShown() { _celebration.value = null }
 
     fun saveIncome(income: Income) = viewModelScope.launch {
         if (income.id == 0L) db.incomeDao().insert(income) else db.incomeDao().update(income)
@@ -78,7 +88,11 @@ class BudgetViewModel(app: Application) : AndroidViewModel(app) {
      * Negative takes money out of the goal.
      */
     fun adjustGoal(goal: SavingsGoal, deltaCents: Long) = viewModelScope.launch {
-        db.goalDao().update(goal.copy(savedCents = (goal.savedCents + deltaCents).coerceAtLeast(0)))
+        val newSaved = (goal.savedCents + deltaCents).coerceAtLeast(0)
+        db.goalDao().update(goal.copy(savedCents = newSaved))
+        BudgetMath.crossedMilestone(goal.savedCents, newSaved, goal.targetCents)?.let { pct ->
+            _celebration.value = Celebration(goal.name, GoalCategory.of(goal.category).emoji, pct)
+        }
         if (deltaCents > 0) {
             db.expenseDao().insert(
                 Expense(category = Categories.SAVINGS, amountCents = deltaCents, date = System.currentTimeMillis(),

@@ -19,6 +19,9 @@ data class Settings(
     /** What you expect to make in a month. 0 = estimate from the last 4 weeks of pay. */
     val expectedMonthlyIncomeCents: Long = 0,
     val notes: String = "",
+    /** Post a Savings Scout notification after an auto-imported payout. */
+    val scoutAlerts: Boolean = true,
+    val lastScoutAlertAt: Long = 0,
 )
 
 class SettingsStore(context: Context) {
@@ -36,6 +39,8 @@ class SettingsStore(context: Context) {
             .putLong("lastPrerollPriceCents", next.lastPrerollPriceCents)
             .putLong("expectedMonthlyIncomeCents", next.expectedMonthlyIncomeCents)
             .putString("notes", next.notes)
+            .putBoolean("scoutAlerts", next.scoutAlerts)
+            .putLong("lastScoutAlertAt", next.lastScoutAlertAt)
             .also { editor ->
                 next.bucketPercents.forEach { (bucket, pct) -> editor.putInt("pct_${bucket.name}", pct) }
             }
@@ -52,5 +57,7 @@ class SettingsStore(context: Context) {
         bucketPercents = Bucket.entries.associateWith { prefs.getInt("pct_${it.name}", it.defaultPercent) },
         expectedMonthlyIncomeCents = prefs.getLong("expectedMonthlyIncomeCents", 0),
         notes = prefs.getString("notes", "").orEmpty(),
+        scoutAlerts = prefs.getBoolean("scoutAlerts", true),
+        lastScoutAlertAt = prefs.getLong("lastScoutAlertAt", 0),
     )
 }

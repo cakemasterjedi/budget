@@ -35,9 +35,10 @@ class MoneyNotificationListener : NotificationListenerService() {
 
         val postedAt = notification.`when`.takeIf { it > 0 } ?: sbn.postTime
         val label = appLabel(sbn.packageName)
-        val db = (application as BudgetApp).db
+        val app = application as BudgetApp
         scope.launch {
-            AutoImporter(db).handle(sbn.packageName, label, title, text, postedAt)
+            AutoImporter(app.db) { income -> ScoutNotifier.afterPayout(app, income) }
+                .handle(sbn.packageName, label, title, text, postedAt)
         }
     }
 

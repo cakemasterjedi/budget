@@ -10,7 +10,7 @@ import com.gigbudget.app.autoimport.KnownApps
 
 @Database(
     entities = [Income::class, Expense::class, SavingsGoal::class, WatchedApp::class, NotificationLog::class, Debt::class, Bill::class],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -61,9 +61,16 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v4: savings goal categories (emergency fund, car, trip…). */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE goals ADD COLUMN category TEXT NOT NULL DEFAULT 'OTHER'")
+            }
+        }
+
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "gigbudget.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         KnownApps.defaults.forEach { app ->

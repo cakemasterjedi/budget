@@ -53,4 +53,17 @@ class MigrationTest {
         db.execSQL("INSERT INTO debts (name, balanceCents, minPaymentCents, apr) VALUES ('Card', 50000, 2500, 24.9)")
         db.execSQL("INSERT INTO bills (name, amountCents, dueDay, category) VALUES ('Rent', 90000, 1, 'Rent')")
     }
+
+    @Test fun migrate3To4AddsGoalCategory() {
+        helper.createDatabase("test4.db", 3).apply {
+            execSQL("INSERT INTO goals (name, targetCents, savedCents) VALUES ('Tires', 60000, 1000)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("test4.db", 4, true, AppDatabase.MIGRATION_3_4)
+        db.query("SELECT name, category FROM goals").use {
+            it.moveToFirst()
+            assertEquals("Tires", it.getString(0))
+            assertEquals("OTHER", it.getString(1))
+        }
+    }
 }

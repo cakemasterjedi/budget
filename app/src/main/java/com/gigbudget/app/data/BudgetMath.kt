@@ -51,7 +51,85 @@ enum class BillStatus { PAID, OVERDUE, DUE_SOON, LATER }
 
 data class BillState(val bill: Bill, val dueDate: LocalDate, val status: BillStatus, val daysUntilDue: Long)
 
+/** How the Savings Scout got to its number, so the app can show its work. */
+data class ScoutResult(
+    /** What's safe to move to savings right now: 0, or $5–$50 in whole dollars. */
+    val amountCents: Long,
+    /** This month's income minus taxes, spending, savings and debt payments so far. */
+    val leftCents: Long,
+    val billsDueCents: Long,
+    val debtDueCents: Long,
+    /** Everyday spending expected for the rest of the month, at your recent daily pace. */
+    val expectedSpendingCents: Long,
+    val daysLeft: Int,
+    val safetyCents: Long,
+)
+
 object BudgetMath {
+    const val SCOUT_MIN_CENTS = 500L
+    const val SCOUT_MAX_CENTS = 5_000L
+    const val SCOUT_SAFETY_CENTS = 5_000L
+
+    /**
+     * Savings Scout: finds a small amount you can save today without coming up short this month.
+     * Takes what's left, holds back unpaid bills, remaining minimum debt payments, everyday spending
+     * for the days left at your recent pace and a $50 cushion, then suggests half of what's spare
+     * (between $5 and $50, or nothing).
+     */
+    fun savingsScout(
+        settings: Settings,
+        incomes: List<Income>,
+        expenses: List<Expense>,
+        bills: List<Bill>,
+        debts: List<Debt>,
+        today: LocalDate = LocalDate.now(),
+    ): ScoutResult {
+        val (start, end) = Dates.range(Period.MONTH, today)
+        val month = summarize(incomes, expenses, start, end)
+        val left = month.incomeTotal - month.incomeTotal * settings.taxPercent / 100 -
+            month.spendingTotal - month.savingsTotal - month.debtTotal
+        val billsDue = billStates(bills, expenses, today).filter { it.status != BillStatus.PAID }.sumOf { it.bill.amountCents }
+        val debtDue = debts.filter { it.balanceCents > 0 }.sumOf { debt ->
+            val paid = expenses.filter { it.debtId == debt.id && it.date in start until end }.sumOf { it.amountCents }
+            (minOf(debt.minPaymentCents, debt.balanceCents) - paid).coerceAtLeast(0)
+        }
+        // Recent everyday pace, leaving out bill payments (they're counted above).
+        val recentStart = Dates.startOf(today.minusDays(27))
+        val recentEnd = Dates.startOf(today.plusDays(1))
+        val daily = expenses.filter {
+            it.date in recentStart until recentEnd && it.billId == null &&
+                Bucket.of(it.category) !in setOf(Bucket.SAVINGS, Bucket.DEBT)
+        }.sumOf { it.amountCents } / 28
+        val daysLeft = today.lengthOfMonth() - today.dayOfMonth + 1
+        val expected = daily * daysLeft
+        val spare = left - billsDue - debtDue - expected - SCOUT_SAFETY_CENTS
+        val amount = (spare / 2).coerceAtMost(SCOUT_MAX_CENTS) / 100 * 100
+        return ScoutResult(
+            amountCents = if (amount >= SCOUT_MIN_CENTS) amount else 0,
+            leftCents = left,
+            billsDueCents = billsDue,
+            debtDueCents = debtDue,
+            expectedSpendingCents = expected,
+            daysLeft = daysLeft,
+            safetyCents = SCOUT_SAFETY_CENTS,
+        )
+    }
+
+    /** The 25 / 50 / 75 / 100% milestone a goal just passed, if any (the highest one). */
+    fun crossedMilestone(oldSavedCents: Long, newSavedCents: Long, targetCents: Long): Int? {
+        if (targetCents <= 0 || newSavedCents <= oldSavedCents) return null
+        return listOf(100, 75, 50, 25).firstOrNull { pct ->
+            val mark = targetCents * pct / 100
+            oldSavedCents < mark && newSavedCents >= mark
+        }
+    }
+
+    /** Suggested emergency fund: 3 months of planned bills & needs, or a $1,000 starter. */
+    fun emergencyFundTarget(settings: Settings, incomes: List<Income>, expenses: List<Expense>, today: LocalDate = LocalDate.now()): Long {
+        val needs = monthPlan(settings, incomes, expenses, today).buckets.first { it.bucket == Bucket.NEEDS }.plannedCents
+        return if (needs > 0) (needs * 3 + 9_999) / 10_000 * 10_000 else 100_000
+    }
+
     fun summarize(incomes: List<Income>, expenses: List<Expense>, start: Long, end: Long): Summary {
         val inc = incomes.filter { it.date in start until end }
         val exp = expenses.filter { it.date in start until end }

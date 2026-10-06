@@ -18,8 +18,14 @@ Pink & purple design, five tabs:
   monthly bills with due dates and a Pay button, and notes & reminders. The plan is built on what
   you expect to make (or your last 4 weeks of pay), after the tax set-aside.
 - **Money** – spending and income lists. Tap any entry to edit it or fix its category.
-- **Goals** – savings goals (how much per week/day to hit the date) and a **debt tracker**
-  (balance, minimum, interest, payments this month, and when you'll be debt-free).
+- **Goals** – savings goals by category (☂️ emergency fund, 🚗 car, ✈️ trip, 🎁 holidays…) with how
+  much to save per week / month / day, celebrations at 25 / 50 / 75 / 100%, a one-tap
+  **emergency fund** (3 months of bills), and a **debt tracker** (balance, minimum, interest,
+  payments this month, and when you'll be debt-free).
+- **Savings Scout** (Home and Goals) – looks at what's left this month, bills and minimum debt
+  payments still due, and your everyday spending pace, then suggests a safe $5–$50 to save today.
+  Tap "How?" to see the math. With auto-import on, you get a heads-up notification after a payout
+  (at most every 3 hours). Inspired by Huntington's Money Scout and Savings Goal Getter.
 - **Settings** – auto-import setup, which apps to watch, tax %, and weekly bottle/preroll limits.
 
 Categories and buckets: **Bills & needs** = Rent, Bills, Phone, Groceries, Gas, Car, Health ·

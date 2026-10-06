@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
@@ -40,6 +42,7 @@ import com.gigbudget.app.BudgetViewModel
 import com.gigbudget.app.data.Bucket
 import com.gigbudget.app.data.BudgetMath
 import com.gigbudget.app.data.Debt
+import com.gigbudget.app.data.GoalCategory
 import com.gigbudget.app.data.Period
 import com.gigbudget.app.data.Dates
 import com.gigbudget.app.data.GoalPlan
@@ -62,15 +65,30 @@ fun GoalsScreen(vm: BudgetViewModel, modifier: Modifier) {
     val avgWeekly = BudgetMath.averageWeeklyIncome(incomes)
     val plans = goals.associate { it.id to BudgetMath.goalPlan(it, avgWeekly) }
     val weeklyNeed = plans.values.sumOf { it.perWeekCents ?: 0 }
+    val emergencyTarget = BudgetMath.emergencyFundTarget(settings, incomes, expenses)
+    fun newEmergencyFund() = SavingsGoal(name = GoalCategory.EMERGENCY.label, targetCents = emergencyTarget, category = GoalCategory.EMERGENCY.name)
 
     Box(modifier.fillMaxSize()) {
         LazyColumn(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            item { SavingsScoutCard(vm, onNeedGoal = { editing = newEmergencyFund() }) }
+            if (goals.none { it.category == GoalCategory.EMERGENCY.name }) {
+                item {
+                    SectionCard("Start an emergency fund", emoji = GoalCategory.EMERGENCY.emoji) {
+                        Text(
+                            "A slow week, a flat tire, a sick day — an emergency fund keeps one bad week from becoming debt. " +
+                                "Aim for 3 months of bills: about ${Money.format(emergencyTarget)}.",
+                        )
+                        FilledTonalButton(onClick = { editing = newEmergencyFund() }) { Text("Start it") }
+                    }
+                }
+            }
             item {
                 SectionCard("To stay on track", emoji = "🐷") {
                     Text("${Money.format(weeklyNeed)} / week", style = MaterialTheme.typography.headlineMedium)
+                    if (weeklyNeed > 0) Text("≈ ${Money.format(weeklyNeed * 52 / 12)} / month", style = MaterialTheme.typography.titleSmall)
                     when {
                         goals.isEmpty() -> Text("Add something you're saving for — a car repair, rent, a trip, a new phone.")
                         avgWeekly > 0 && weeklyNeed > 0 ->
@@ -164,7 +182,7 @@ fun GoalsScreen(vm: BudgetViewModel, modifier: Modifier) {
 
 @Composable
 private fun GoalCard(goal: SavingsGoal, plan: GoalPlan, onAdd: () -> Unit, onTakeOut: () -> Unit, onEdit: () -> Unit) {
-    SectionCard(goal.name, emoji = "🎯") {
+    SectionCard(goal.name, emoji = GoalCategory.of(goal.category).emoji) {
         Text("${Money.format(goal.savedCents)} of ${Money.format(goal.targetCents)}")
         ProgressLine(goal.savedCents, goal.targetCents)
         val due = goal.dueDate
@@ -178,7 +196,8 @@ private fun GoalCard(goal: SavingsGoal, plan: GoalPlan, onAdd: () -> Unit, onTak
             else -> {
                 Text("${Money.format(plan.remainingCents)} to go by ${Dates.formatLong(due)} (${plan.daysLeft} days)")
                 Text(
-                    "Save ${Money.format(plan.perWeekCents ?: 0)}/week · ${Money.format(plan.perDayCents ?: 0)}/day" +
+                    "Save ${Money.format(plan.perWeekCents ?: 0)}/week · ${Money.format((plan.perWeekCents ?: 0) * 52 / 12)}/month · " +
+                        "${Money.format(plan.perDayCents ?: 0)}/day" +
                         (plan.percentOfIncome?.let { " · ~$it% of your pay" } ?: ""),
                     style = MaterialTheme.typography.titleSmall,
                 )
@@ -198,6 +217,7 @@ private fun GoalDialog(initial: SavingsGoal, onDismiss: () -> Unit, onSave: (Sav
     var target by remember { mutableStateOf(Money.toInput(initial.targetCents)) }
     var saved by remember { mutableStateOf(Money.toInput(initial.savedCents)) }
     var due by remember { mutableStateOf(initial.dueDate) }
+    var category by remember { mutableStateOf(initial.category) }
     val targetCents = Money.parse(target)
     val savedCents = if (saved.isBlank()) 0L else Money.parse(saved)
 
@@ -205,7 +225,11 @@ private fun GoalDialog(initial: SavingsGoal, onDismiss: () -> Unit, onSave: (Sav
         onDismissRequest = onDismiss,
         title = { Text(if (initial.id == 0L) "New savings goal" else "Edit goal") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
+                ChoiceChips(GoalCategory.entries.map { it.name }, category, { picked ->
+                    if (name.isBlank() || GoalCategory.entries.any { it.label == name }) name = GoalCategory.of(picked).label
+                    category = picked
+                }) { GoalCategory.of(it).let { c -> "${c.emoji} ${c.label}" } }
                 OutlinedTextField(name, { name = it }, label = { Text("What for? (e.g. Tires, Rent)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 MoneyField(target, { target = it }, "Goal amount")
                 MoneyField(saved, { saved = it }, "Already saved")
@@ -216,7 +240,7 @@ private fun GoalDialog(initial: SavingsGoal, onDismiss: () -> Unit, onSave: (Sav
             TextButton(
                 enabled = name.isNotBlank() && targetCents != null && targetCents > 0 && savedCents != null,
                 onClick = {
-                    onSave(initial.copy(name = name.trim(), targetCents = targetCents ?: 0, savedCents = savedCents ?: 0, dueDate = due))
+                    onSave(initial.copy(name = name.trim(), targetCents = targetCents ?: 0, savedCents = savedCents ?: 0, dueDate = due, category = category))
                 },
             ) { Text("Save") }
         },

@@ -114,6 +114,23 @@ data class Expense(
     val billId: Long? = null,
 )
 
+/** What a savings goal is for. Picks the goal's emoji. */
+enum class GoalCategory(val label: String, val emoji: String) {
+    EMERGENCY("Emergency fund", "☂️"),
+    CAR("Car", "🚗"),
+    HOME("Home & rent", "🏠"),
+    TRIP("Trip", "✈️"),
+    PHONE("Phone & tech", "📱"),
+    HOLIDAY("Holidays & gifts", "🎁"),
+    SCHOOL("School", "🎓"),
+    TAXES("Taxes", "🧾"),
+    OTHER("Other", "🎯");
+
+    companion object {
+        fun of(name: String) = entries.firstOrNull { it.name == name } ?: OTHER
+    }
+}
+
 @Entity(tableName = "goals")
 data class SavingsGoal(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -121,6 +138,8 @@ data class SavingsGoal(
     val targetCents: Long,
     val savedCents: Long = 0,
     val dueDate: Long? = null,
+    /** [GoalCategory] name. */
+    @ColumnInfo(defaultValue = "OTHER") val category: String = GoalCategory.OTHER.name,
 )
 
 @Entity(tableName = "debts")
