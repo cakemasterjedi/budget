@@ -30,6 +30,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -39,13 +40,20 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.gigbudget.app.BudgetViewModel
 import com.gigbudget.app.autoimport.MoneyNotificationListener
 import com.gigbudget.app.data.Money
+import com.gigbudget.app.data.Outcomes
 import com.gigbudget.app.data.Roles
 import com.gigbudget.app.data.WatchedApp
 import com.gigbudget.app.ui.theme.IncomeGreen
 
 @Composable
 fun SettingsScreen(vm: BudgetViewModel, modifier: Modifier) {
+    var showLog by rememberSaveable { mutableStateOf(false) }
+    if (showLog) {
+        Box(modifier) { NotificationLogScreen(vm, onBack = { showLog = false }) }
+        return
+    }
     val apps by vm.watchedApps.collectAsState()
+    val log by vm.notificationLog.collectAsState()
     val settings by vm.settings.collectAsState()
     val context = LocalContext.current
     var enabled by remember { mutableStateOf(MoneyNotificationListener.isEnabled(context)) }
@@ -72,9 +80,10 @@ fun SettingsScreen(vm: BudgetViewModel, modifier: Modifier) {
                     )
                 } else {
                     Text(
-                        "Gig Budget can log your pay and spending for you by reading the notifications " +
+                        "Gig Budget can log your income and spending for you by reading the notifications " +
                             "DoorDash, Spark and your bank/payment apps already send (\"You earned \$X\", " +
-                            "\"You spent \$X at …\"). Everything stays on your phone — the app has no internet access."
+                            "\"Deposit of \$X received\", \"You spent \$X at …\"). Everything stays on your phone — " +
+                            "the app has no internet access."
                     )
                     Text(
                         "Make sure those apps have notifications turned on, then allow access:",
@@ -90,11 +99,41 @@ fun SettingsScreen(vm: BudgetViewModel, modifier: Modifier) {
         }
 
         item {
+            val weekAgo = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
+            val recent = log.filter { it.postedAt >= weekAgo }
+            SectionCard("Captured notifications") {
+                if (log.isEmpty()) {
+                    Text("Nothing yet. Money notifications from the apps below will be listed here with what they became.")
+                } else {
+                    Text("Last 7 days:")
+                    Text(
+                        "${recent.count { it.outcome == Outcomes.INCOME }} income · " +
+                            "${recent.count { it.outcome == Outcomes.EXPENSE }} spending · " +
+                            "${recent.count { it.outcome == Outcomes.SKIPPED }} skipped",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        "Check the skipped ones — if something was real money, add it with one tap.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                OutlinedButton(onClick = { showLog = true }) { Text("View captured notifications") }
+            }
+        }
+
+        item {
             SectionCard("Apps to watch") {
                 Text(
-                    "Choose what each app's notifications count as. Apps that send money alerts show up here " +
-                        "automatically — switch them on if they're yours. Only turn on one app per payout " +
-                        "(e.g. Dasher app OR DasherDirect) so pay isn't counted twice.",
+                    "Choose what each app's notifications count as:\n" +
+                        "• DoorDash pay / Spark pay — earnings from the gig app\n" +
+                        "• Money in & out — purchases are spending; deposits and money sent to you are income\n" +
+                        "• Spending only — ignore money coming in\n" +
+                        "Apps that send money alerts show up here automatically — switch them on if they're yours.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Text(
+                    "No double counting: a DoorDash or Spark deposit in your bank is skipped if the DoorDash/Spark " +
+                        "app already logged pay in the last 2 weeks.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }

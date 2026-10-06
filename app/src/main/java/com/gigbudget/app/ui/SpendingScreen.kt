@@ -111,7 +111,7 @@ fun SpendingScreen(vm: BudgetViewModel, modifier: Modifier) {
 }
 
 @Composable
-private fun ExpenseDialog(initial: Expense, onDismiss: () -> Unit, onSave: (Expense) -> Unit, onDelete: (() -> Unit)?) {
+internal fun ExpenseDialog(initial: Expense, onDismiss: () -> Unit, onSave: (Expense) -> Unit, onDelete: (() -> Unit)?) {
     var category by remember { mutableStateOf(initial.category) }
     var amount by remember { mutableStateOf(Money.toInput(initial.amountCents)) }
     var date by remember { mutableStateOf(initial.date) }

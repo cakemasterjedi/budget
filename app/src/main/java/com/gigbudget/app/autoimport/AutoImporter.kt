@@ -3,8 +3,13 @@ package com.gigbudget.app.autoimport
 import com.gigbudget.app.data.AppDatabase
 import com.gigbudget.app.data.Expense
 import com.gigbudget.app.data.Income
+import com.gigbudget.app.data.IncomeSources
+import com.gigbudget.app.data.Money
+import com.gigbudget.app.data.NotificationLog
+import com.gigbudget.app.data.Outcomes
 import com.gigbudget.app.data.Roles
 import com.gigbudget.app.data.WatchedApp
+import java.util.concurrent.TimeUnit
 
 class AutoImporter(private val db: AppDatabase) {
 
@@ -26,31 +31,87 @@ class AutoImporter(private val db: AppDatabase) {
         apps.update(app.copy(lastSeen = postedAt, lastSample = sample))
         if (app.role == Roles.IGNORE) return
 
-        val result = NotificationParser.parse(app.role, title, text) ?: return
         // Android re-posts the same notification when it updates; this key makes re-posts no-ops.
-        val dedupeKey = "$packageName|$postedAt|${result.amountCents}|${(title + text).hashCode()}"
-        when (result.kind) {
-            NotificationParser.Kind.INCOME -> db.incomeDao().insert(
-                Income(
-                    source = result.incomeSource,
-                    amountCents = result.amountCents,
-                    date = postedAt,
-                    note = "Auto: ${app.label}",
-                    auto = true,
-                    dedupeKey = dedupeKey,
-                )
-            )
-            NotificationParser.Kind.EXPENSE -> db.expenseDao().insert(
-                Expense(
-                    category = result.category,
-                    amountCents = result.amountCents,
-                    date = postedAt,
-                    note = result.merchant.ifBlank { title },
-                    auto = true,
-                    sourceApp = app.label,
-                    dedupeKey = dedupeKey,
-                )
-            )
+        val logKey = "$packageName|$postedAt|${(title + text).hashCode()}"
+        val log = db.notificationLogDao()
+        if (log.exists(logKey)) return
+
+        fun entry(amount: Long?, outcome: String, detail: String) = NotificationLog(
+            packageName = packageName, appLabel = app.label, title = title, text = text, postedAt = postedAt,
+            amountCents = amount, outcome = outcome, detail = detail, dedupeKey = logKey,
+        )
+
+        val parsed = NotificationParser.parse(
+            app.role, title, text, KnownApps.incomeSourceFor(packageName) ?: IncomeSources.OTHER,
+        )
+        val logged = when (parsed) {
+            is NotificationParser.Parsed.Skip -> entry(parsed.amountCents, Outcomes.SKIPPED, parsed.reason)
+            is NotificationParser.Parsed.Match -> record(app, parsed.result, title, postedAt, logKey, ::entry)
         }
+        log.insert(logged)
+        log.prune()
+    }
+
+    private suspend fun record(
+        app: WatchedApp,
+        result: NotificationParser.Result,
+        title: String,
+        postedAt: Long,
+        dedupeKey: String,
+        entry: (Long?, String, String) -> NotificationLog,
+    ): NotificationLog {
+        val amount = result.amountCents
+        return when (result.kind) {
+            NotificationParser.Kind.INCOME -> {
+                countedByGigApp(app, result.incomeSource, postedAt)?.let { gigRole ->
+                    return entry(amount, Outcomes.SKIPPED, "Already counted from your ${Roles.label(gigRole)} app")
+                }
+                db.incomeDao().insert(
+                    Income(
+                        source = result.incomeSource,
+                        amountCents = amount,
+                        date = postedAt,
+                        note = listOf("Auto: ${app.label}", result.merchant).filter { it.isNotBlank() }.joinToString(" · "),
+                        auto = true,
+                        dedupeKey = dedupeKey,
+                        sourcePackage = app.packageName,
+                    )
+                )
+                entry(amount, Outcomes.INCOME, "${result.incomeSource} income +${Money.format(amount)}")
+            }
+            NotificationParser.Kind.EXPENSE -> {
+                db.expenseDao().insert(
+                    Expense(
+                        category = result.category,
+                        amountCents = amount,
+                        date = postedAt,
+                        note = result.merchant.ifBlank { title },
+                        auto = true,
+                        sourceApp = app.label,
+                        dedupeKey = dedupeKey,
+                    )
+                )
+                entry(amount, Outcomes.EXPENSE, "${result.category} −${Money.format(amount)}")
+            }
+        }
+    }
+
+    /**
+     * A DoorDash/Spark deposit in a bank app is skipped when the DoorDash/Spark app itself has logged
+     * pay in the last two weeks — otherwise the same money would be counted twice. Returns that role.
+     */
+    private suspend fun countedByGigApp(app: WatchedApp, source: String, postedAt: Long): String? {
+        if (app.role != Roles.BANK) return null
+        val gigRole = when (source) {
+            IncomeSources.DOORDASH -> Roles.DOORDASH
+            IncomeSources.SPARK -> Roles.SPARK
+            else -> return null
+        }
+        val since = postedAt - TimeUnit.DAYS.toMillis(GIG_APP_WINDOW_DAYS)
+        return gigRole.takeIf { db.incomeDao().countAutoFromRole(source, gigRole, since) > 0 }
+    }
+
+    companion object {
+        const val GIG_APP_WINDOW_DAYS = 14L
     }
 }

@@ -32,9 +32,21 @@ object NotificationParser {
     private val SPEND = words("spent", "purchase", "you paid", "paid", "payment", "charge", "debit",
         "transaction", "you sent", "sent", "withdraw", "card was used", "used your card", "used at",
         "pending", "approved", "authorized")
-    private val SPEND_NOT = words("received", "deposit", "paid you", "sent you", "credited", "refund",
-        "declined", "due\\b", "request", "reward", "cash back", "cashback", "get \\$", "save \\$", "statement",
-        "reminder", "direct dep")
+    private val NOT_A_TRANSACTION = words("declined", "failed", "due\\b", "request", "reward", "cash back", "cashback",
+        "get \\$", "save \\$", "statement", "reminder", "refund", "low balance", "balance is", "upcoming")
+    private val BILL_PAYMENT = words("received your payment", "payment received", "payment posted", "thank you for your payment",
+        "autopay")
+    private val OWN_TRANSFER = words("transfer(?:red)? from your", "from (?:your )?savings", "from (?:your )?checking",
+        "between your accounts", "transfer(?:red)? to your (?:savings|checking)")
+    private val MONEY_IN = words("received", "deposit", "paid you", "sent you", "credited", "direct dep",
+        "you've been paid", "you have been paid", "you got paid", "got paid", "added to your", "incoming", "money in")
+    private val DOORDASH_WORDS = words("doordash", "door dash", "dasher", "payfare")
+    private val SPARK_WORDS = words("spark\\b", "walmart")
+
+    /** "Deposit of $300.00 from DOORDASH INC." -> "DOORDASH INC" */
+    private val PAYER_FROM = Regex("""\bfrom\s+([A-Za-z0-9&'.\- ]{2,40}?)(?=\s+(?:on|for|to|into|in|was|has)\b|[.,!;:]|\s*$)""", RegexOption.IGNORE_CASE)
+    /** "Jake paid you $20" -> "Jake" */
+    private val PAYER_PAID_YOU = Regex("""^\W*([A-Za-z][A-Za-z.' ]{0,30}?)\s+(?:paid|sent) you""", RegexOption.IGNORE_CASE)
 
     private val MERCHANT = Regex(
         """\b(?:at|to|@)\s+([A-Za-z0-9&'*#.\- ]{2,40}?)(?=\s+(?:on|for|with|using|was|is|has|in)\b|[.,!;:]|\s*$)""",
@@ -61,6 +73,12 @@ object NotificationParser {
         Categories.BILLS to listOf("electric", "utility", "comcast", "xfinity", "spectrum", "netflix", "spotify", "hulu"),
     )
 
+    /** Either an income/expense to record, or why the notification was skipped. */
+    sealed interface Parsed {
+        data class Match(val result: Result) : Parsed
+        data class Skip(val reason: String, val amountCents: Long?) : Parsed
+    }
+
     fun mentionsMoney(text: String): Boolean = AMOUNT.containsMatchIn(text)
 
     fun firstAmountCents(text: String): Long? {
@@ -75,26 +93,56 @@ object NotificationParser {
         return dollars * 100 + cents
     }
 
-    fun parse(role: String, title: String, text: String): Result? {
+    fun parseOrNull(role: String, title: String, text: String, defaultIncomeSource: String = IncomeSources.OTHER): Result? =
+        (parse(role, title, text, defaultIncomeSource) as? Parsed.Match)?.result
+
+    /**
+     * @param defaultIncomeSource source for money coming into a bank app when the text doesn't name
+     *   DoorDash or Spark (e.g. DasherDirect deposits are always DoorDash).
+     */
+    fun parse(role: String, title: String, text: String, defaultIncomeSource: String = IncomeSources.OTHER): Parsed {
         val full = "$title. $text"
-        val amount = firstAmountCents(full)?.takeIf { it > 0 } ?: return null
+        val amount = firstAmountCents(full)?.takeIf { it > 0 } ?: return Parsed.Skip("No dollar amount", null)
         val lower = full.lowercase()
+        fun skip(reason: String) = Parsed.Skip(reason, amount)
         return when (role) {
-            Roles.DOORDASH, Roles.SPARK -> {
-                if (GIG_NOT_PAY.containsMatchIn(lower) || !GIG_PAY.containsMatchIn(lower)) return null
-                val source = if (role == Roles.DOORDASH) IncomeSources.DOORDASH else IncomeSources.SPARK
-                Result(Kind.INCOME, amount, incomeSource = source)
+            Roles.DOORDASH, Roles.SPARK -> when {
+                GIG_NOT_PAY.containsMatchIn(lower) -> skip("Looks like an offer or promo, not pay")
+                !GIG_PAY.containsMatchIn(lower) -> skip("Didn't say you were paid")
+                else -> Parsed.Match(
+                    Result(Kind.INCOME, amount, incomeSource = if (role == Roles.DOORDASH) IncomeSources.DOORDASH else IncomeSources.SPARK)
+                )
             }
-            Roles.SPENDING -> {
-                if (SPEND_NOT.containsMatchIn(lower) || !SPEND.containsMatchIn(lower)) return null
-                val merchant = MERCHANT.find(text)?.groupValues?.get(1)?.trim()
-                    ?: MERCHANT.find(title)?.groupValues?.get(1)?.trim()
-                    ?: ""
-                Result(Kind.EXPENSE, amount, merchant = merchant, category = guessCategory("$merchant $lower"))
+            Roles.BANK, Roles.SPENDING -> when {
+                NOT_A_TRANSACTION.containsMatchIn(lower) -> skip("Reminder, promo or declined charge")
+                BILL_PAYMENT.containsMatchIn(lower) -> skip("Card or bill payment (not new spending)")
+                OWN_TRANSFER.containsMatchIn(lower) -> skip("Transfer between your own accounts")
+                MONEY_IN.containsMatchIn(lower) ->
+                    if (role == Roles.SPENDING) skip("Money coming in (this app is set to Spending only)")
+                    else Parsed.Match(Result(Kind.INCOME, amount, merchant = payer(text).ifBlank { payer(title) }, incomeSource = gigSource(lower) ?: defaultIncomeSource))
+                SPEND.containsMatchIn(lower) -> {
+                    val merchant = MERCHANT.find(text)?.groupValues?.get(1)?.trim()
+                        ?: MERCHANT.find(title)?.groupValues?.get(1)?.trim()
+                        ?: ""
+                    Parsed.Match(Result(Kind.EXPENSE, amount, merchant = merchant, category = guessCategory("$merchant $lower")))
+                }
+                else -> skip("Couldn't tell if money went in or out")
             }
-            else -> null
+            else -> skip("App is switched off")
         }
     }
+
+    /** DoorDash / Spark when a deposit names them, e.g. "Direct deposit from DOORDASH INC". */
+    fun gigSource(lower: String): String? = when {
+        DOORDASH_WORDS.containsMatchIn(lower) -> IncomeSources.DOORDASH
+        SPARK_WORDS.containsMatchIn(lower) -> IncomeSources.SPARK
+        else -> null
+    }
+
+    private fun payer(text: String): String =
+        PAYER_FROM.find(text)?.groupValues?.get(1)?.trim()
+            ?: PAYER_PAID_YOU.find(text)?.groupValues?.get(1)?.trim()
+            ?: ""
 
     fun guessCategory(text: String): String {
         val haystack = " ${text.lowercase()} "

@@ -28,22 +28,35 @@ reads the **notifications** those apps already send you instead:
 | Spark Driver: "$120.00 has been deposited…" | Income · Spark |
 | Chase / Cash App / Chime / etc.: "You spent $12.34 at SHELL…" | Spending · Gas |
 | "…at Green Dragon Dispensary" / "…at Total Wine" | Spending · Preroll / Bottle |
+| Bank: "Direct deposit of $312.45 from DOORDASH INC" | Income · DoorDash |
+| Bank: "You received $88.10 from Walmart" | Income · Spark |
+| Venmo / Cash App: "Jake paid you $20" | Income · Other |
+| DasherDirect: "You've been paid $54.20" | Income · DoorDash |
 
-Offers ("$8.50 est. pay", "Earn an extra $2"), deposits into your bank, money people send you,
-bill reminders and declined cards are skipped.
+Skipped: delivery offers ("$8.50 est. pay", "Earn an extra $2"), bill reminders, card/bill
+payments, transfers between your own accounts, money requests, balances and declined cards.
+
+**No double counting:** a DoorDash or Spark deposit in a bank app is skipped if the DoorDash/Spark
+app itself logged pay in the last 2 weeks. If the gig app doesn't notify you about pay, the bank
+deposits are counted instead.
+
+**Captured notifications log** (Settings → View captured notifications) lists every money
+notification from the apps you watch, what it became, or why it was skipped. Skipped ones
+have **Add as income** / **Add as spending** buttons so nothing real gets lost.
 
 To turn it on: **Settings → Allow notification access → Gig Budget**. Make sure the DoorDash,
 Spark and bank apps have their own notifications (and purchase alerts) turned on.
 
-- Cash App, Chime, PayPal, Venmo, Google Wallet, Chase, Capital One, Wells Fargo, Bank of America,
-  USAA and Varo are pre-set as spending apps. Any other app that sends a money notification shows up
+- Each watched app is set to one of: **DoorDash pay**, **Spark pay**, **Money in & out** (purchases
+  are spending, deposits and money sent to you are income), **Spending only**, or **Off**.
+- DasherDirect, Cash App, Chime, PayPal, Venmo, Google Wallet, Chase, Capital One, Wells Fargo,
+  Bank of America, USAA and Varo are pre-set to Money in & out. Any other app that sends a money notification shows up
   in Settings automatically — switch it on there.
 - If your bank texts you instead, turn on "Messages (bank texts)".
-- Only switch on **one** app per payout (e.g. the Dasher app *or* DasherDirect) so pay isn't counted twice.
 - Imported entries are marked **auto**; tap one to fix the amount or category.
 - It only catches notifications from after you enable it. Add older pay/spending by hand.
 - Notification wording differs between app versions. If something isn't picked up, the
-  "Last:" line under each app in Settings shows the last money notification it saw.
+  captured notifications log shows exactly what each app sent and why it was skipped.
 
 **Privacy:** the app has no internet permission. Your data never leaves your phone.
 
@@ -57,7 +70,7 @@ Spark and bank apps have their own notifications (and purchase alerts) turned on
 
 ```sh
 ./gradlew assembleDebug      # APK at app/build/outputs/apk/debug/app-debug.apk
-./gradlew testDebugUnitTest  # parser + savings math tests
+./gradlew testDebugUnitTest  # parser, auto-import, database upgrade and savings math tests
 ```
 
 Requires Android 8.0+.

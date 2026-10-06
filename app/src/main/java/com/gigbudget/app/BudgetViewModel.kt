@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.gigbudget.app.data.Categories
 import com.gigbudget.app.data.Expense
 import com.gigbudget.app.data.Income
+import com.gigbudget.app.data.NotificationLog
 import com.gigbudget.app.data.SavingsGoal
 import com.gigbudget.app.data.Settings
 import com.gigbudget.app.data.WatchedApp
@@ -23,6 +24,7 @@ class BudgetViewModel(app: Application) : AndroidViewModel(app) {
     val expenses = db.expenseDao().all().asState()
     val goals = db.goalDao().all().asState()
     val watchedApps = db.watchedAppDao().all().asState()
+    val notificationLog = db.notificationLogDao().recent().asState()
     val settings: StateFlow<Settings> = budgetApp.settings.state
 
     fun saveIncome(income: Income) = viewModelScope.launch {
@@ -55,6 +57,13 @@ class BudgetViewModel(app: Application) : AndroidViewModel(app) {
     fun setAppRole(app: WatchedApp, role: String) = viewModelScope.launch {
         db.watchedAppDao().update(app.copy(role = role))
     }
+
+    /** After adding a skipped notification by hand, show it as handled in the log. */
+    fun markLogHandled(entry: NotificationLog, outcome: String, detail: String) = viewModelScope.launch {
+        db.notificationLogDao().update(entry.copy(outcome = outcome, detail = detail))
+    }
+
+    fun clearNotificationLog() = viewModelScope.launch { db.notificationLogDao().clear() }
 
     fun updateSettings(transform: (Settings) -> Settings) = budgetApp.settings.update(transform)
 

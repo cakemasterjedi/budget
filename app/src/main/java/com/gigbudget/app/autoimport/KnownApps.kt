@@ -2,7 +2,10 @@ package com.gigbudget.app.autoimport
 
 import com.gigbudget.app.data.Roles
 
-data class KnownApp(val packageName: String, val label: String, val role: String)
+import com.gigbudget.app.data.IncomeSources
+
+/** [incomeSource] tags money coming into that app even when the notification doesn't name the gig. */
+data class KnownApp(val packageName: String, val label: String, val role: String, val incomeSource: String? = null)
 
 /**
  * Apps pre-loaded into the auto-import list. Any other app that posts a notification with a
@@ -12,26 +15,27 @@ object KnownApps {
     val defaults = listOf(
         // Gig pay
         KnownApp("com.doordash.driverapp", "DoorDash Dasher", Roles.DOORDASH),
-        // DasherDirect usually repeats the same payouts as the Dasher app, so it starts off
-        // to avoid counting money twice. Switch it on if you'd rather track pay from there.
-        KnownApp("com.payfare.doordash", "DasherDirect", Roles.IGNORE),
+        // DoorDash's debit card: payouts in are DoorDash income, card purchases are spending.
+        KnownApp("com.payfare.doordash", "DasherDirect", Roles.BANK, IncomeSources.DOORDASH),
         KnownApp("com.walmart.sparkdriver", "Spark Driver", Roles.SPARK),
 
-        // Banks & payment apps -> spending
-        KnownApp("com.squareup.cash", "Cash App", Roles.SPENDING),
-        KnownApp("com.onedebit.chime", "Chime", Roles.SPENDING),
-        KnownApp("com.paypal.android.p2pmobile", "PayPal", Roles.SPENDING),
-        KnownApp("com.venmo", "Venmo", Roles.SPENDING),
-        KnownApp("com.google.android.apps.walletnfcrel", "Google Wallet", Roles.SPENDING),
-        KnownApp("com.chase.sig.android", "Chase", Roles.SPENDING),
-        KnownApp("com.konylabs.capitalone", "Capital One", Roles.SPENDING),
-        KnownApp("com.wf.wellsfargomobile", "Wells Fargo", Roles.SPENDING),
-        KnownApp("com.infonow.bofa", "Bank of America", Roles.SPENDING),
-        KnownApp("com.usaa.mobile.android.usaa", "USAA", Roles.SPENDING),
-        KnownApp("com.varomoney.bank", "Varo", Roles.SPENDING),
+        // Banks & payment apps -> spending out, deposits / money received in
+        KnownApp("com.squareup.cash", "Cash App", Roles.BANK),
+        KnownApp("com.onedebit.chime", "Chime", Roles.BANK),
+        KnownApp("com.paypal.android.p2pmobile", "PayPal", Roles.BANK),
+        KnownApp("com.venmo", "Venmo", Roles.BANK),
+        KnownApp("com.google.android.apps.walletnfcrel", "Google Wallet", Roles.BANK),
+        KnownApp("com.chase.sig.android", "Chase", Roles.BANK),
+        KnownApp("com.konylabs.capitalone", "Capital One", Roles.BANK),
+        KnownApp("com.wf.wellsfargomobile", "Wells Fargo", Roles.BANK),
+        KnownApp("com.infonow.bofa", "Bank of America", Roles.BANK),
+        KnownApp("com.usaa.mobile.android.usaa", "USAA", Roles.BANK),
+        KnownApp("com.varomoney.bank", "Varo", Roles.BANK),
 
         // Bank text alerts arrive through the messaging app. Off by default; turn on if your bank texts you.
         KnownApp("com.google.android.apps.messaging", "Messages (bank texts)", Roles.IGNORE),
         KnownApp("com.samsung.android.messaging", "Samsung Messages (bank texts)", Roles.IGNORE),
     )
+
+    fun incomeSourceFor(packageName: String): String? = defaults.firstOrNull { it.packageName == packageName }?.incomeSource
 }

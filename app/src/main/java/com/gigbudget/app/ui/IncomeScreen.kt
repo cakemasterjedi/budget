@@ -89,7 +89,7 @@ fun IncomeScreen(vm: BudgetViewModel, modifier: Modifier) {
 }
 
 @Composable
-private fun IncomeDialog(initial: Income, onDismiss: () -> Unit, onSave: (Income) -> Unit, onDelete: (() -> Unit)?) {
+internal fun IncomeDialog(initial: Income, onDismiss: () -> Unit, onSave: (Income) -> Unit, onDelete: (() -> Unit)?) {
     var source by remember { mutableStateOf(initial.source) }
     var amount by remember { mutableStateOf(Money.toInput(initial.amountCents)) }
     var date by remember { mutableStateOf(initial.date) }

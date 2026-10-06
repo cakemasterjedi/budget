@@ -17,6 +17,13 @@ interface IncomeDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(income: Income): Long
 
+    /** Auto-imported income of [source] since [since] that came from an app set to [role]. */
+    @Query(
+        """SELECT COUNT(*) FROM income WHERE auto = 1 AND source = :source AND date >= :since
+           AND sourcePackage IN (SELECT packageName FROM watched_apps WHERE role = :role)"""
+    )
+    suspend fun countAutoFromRole(source: String, role: String, since: Long): Int
+
     @Update
     suspend fun update(income: Income)
 
@@ -67,4 +74,25 @@ interface WatchedAppDao {
 
     @Update
     suspend fun update(app: WatchedApp)
+}
+
+@Dao
+interface NotificationLogDao {
+    @Query("SELECT * FROM notification_log ORDER BY postedAt DESC LIMIT 300")
+    fun recent(): Flow<List<NotificationLog>>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM notification_log WHERE dedupeKey = :key)")
+    suspend fun exists(key: String): Boolean
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(entry: NotificationLog): Long
+
+    @Update
+    suspend fun update(entry: NotificationLog)
+
+    @Query("DELETE FROM notification_log WHERE id NOT IN (SELECT id FROM notification_log ORDER BY postedAt DESC LIMIT 300)")
+    suspend fun prune()
+
+    @Query("DELETE FROM notification_log")
+    suspend fun clear()
 }
