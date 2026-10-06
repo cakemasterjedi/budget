@@ -38,4 +38,19 @@ class MigrationTest {
         assertEquals("BANK", role("com.payfare.doordash"))
         assertEquals("IGNORE", role("com.example.other"))
     }
+
+    @Test fun migrate2To3AddsDebtsAndBills() {
+        helper.createDatabase("test3.db", 2).apply {
+            execSQL("INSERT INTO expenses (category, amountCents, date, note, auto, sourceApp) VALUES ('Gas', 1200, 1, '', 0, '')")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("test3.db", 3, true, AppDatabase.MIGRATION_2_3)
+        db.query("SELECT amountCents, goalId, debtId, billId FROM expenses").use {
+            it.moveToFirst()
+            assertEquals(1200L, it.getLong(0))
+            assertEquals(true, it.isNull(1) && it.isNull(2) && it.isNull(3))
+        }
+        db.execSQL("INSERT INTO debts (name, balanceCents, minPaymentCents, apr) VALUES ('Card', 50000, 2500, 24.9)")
+        db.execSQL("INSERT INTO bills (name, amountCents, dueDay, category) VALUES ('Rent', 90000, 1, 'Rent')")
+    }
 }

@@ -39,6 +39,9 @@ interface ExpenseDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(expense: Expense): Long
 
+    @Query("SELECT * FROM expenses WHERE id = :id")
+    suspend fun get(id: Long): Expense?
+
     @Update
     suspend fun update(expense: Expense)
 
@@ -50,6 +53,9 @@ interface ExpenseDao {
 interface GoalDao {
     @Query("SELECT * FROM goals ORDER BY CASE WHEN dueDate IS NULL THEN 1 ELSE 0 END, dueDate, name")
     fun all(): Flow<List<SavingsGoal>>
+
+    @Query("SELECT * FROM goals WHERE id = :id")
+    suspend fun get(id: Long): SavingsGoal?
 
     @Insert
     suspend fun insert(goal: SavingsGoal): Long
@@ -95,4 +101,37 @@ interface NotificationLogDao {
 
     @Query("DELETE FROM notification_log")
     suspend fun clear()
+}
+
+@Dao
+interface DebtDao {
+    @Query("SELECT * FROM debts ORDER BY balanceCents = 0, name")
+    fun all(): Flow<List<Debt>>
+
+    @Query("SELECT * FROM debts WHERE id = :id")
+    suspend fun get(id: Long): Debt?
+
+    @Insert
+    suspend fun insert(debt: Debt): Long
+
+    @Update
+    suspend fun update(debt: Debt)
+
+    @Delete
+    suspend fun delete(debt: Debt)
+}
+
+@Dao
+interface BillDao {
+    @Query("SELECT * FROM bills ORDER BY dueDay, name")
+    fun all(): Flow<List<Bill>>
+
+    @Insert
+    suspend fun insert(bill: Bill): Long
+
+    @Update
+    suspend fun update(bill: Bill)
+
+    @Delete
+    suspend fun delete(bill: Bill)
 }

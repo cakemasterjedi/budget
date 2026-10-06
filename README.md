@@ -6,16 +6,25 @@ buttons, and can **log pay and spending automatically** from your apps' notifica
 
 ## Features
 
-- **Home** – income this week/month split by DoorDash / Spark / Other, spending by category,
-  bottle & preroll totals (with optional weekly limits), a tax set-aside, and what's actually left over.
-- **Income** – add pay by source; 4-week average weekly income.
-- **Spending** – 🍾 Bottle and 🌿 Preroll quick-add buttons that remember your usual price, plus
-  regular spending in categories (Gas, Food, Groceries, Car, Rent, Bills, Phone, Fun, Other).
-  Tap any entry to edit it or fix its category.
-- **Savings** – goals with an amount and an optional "need it by" date. Each goal shows how much to
-  save per week and per day, and what percent of your average pay that is. The top card adds up
-  the weekly amount across all goals.
+Pink & purple design, five tabs:
+
+- **Home** – what's left over this month on a pink→purple card, one-tap **Pay / Spend / 🍾 Bottle /
+  🌿 Preroll** buttons, a **pie chart of where your money went** (by bucket, with every category
+  listed underneath with its $ and %), bills coming up, income by DoorDash / Spark, bottle &
+  preroll totals with weekly limits, savings progress and a daily budgeting tip.
+- **Plan** – your monthly split as a pie chart: **50% bills & needs, 5% debt**, 25% wants (incl.
+  bottles & prerolls), 15% savings, 5% giving. Drag sliders to change it. Shows how each bucket is
+  doing this month, a budget summary (income − taxes − savings − expenses − debt = remaining),
+  monthly bills with due dates and a Pay button, and notes & reminders. The plan is built on what
+  you expect to make (or your last 4 weeks of pay), after the tax set-aside.
+- **Money** – spending and income lists. Tap any entry to edit it or fix its category.
+- **Goals** – savings goals (how much per week/day to hit the date) and a **debt tracker**
+  (balance, minimum, interest, payments this month, and when you'll be debt-free).
 - **Settings** – auto-import setup, which apps to watch, tax %, and weekly bottle/preroll limits.
+
+Categories and buckets: **Bills & needs** = Rent, Bills, Phone, Groceries, Gas, Car, Health ·
+**Wants** = Food (eating out), Fun, Shopping, Subscriptions, Bottle, Preroll, Other ·
+**Giving** · **Savings** (money moved into goals) · **Debt** (debt payments).
 
 ## Automatic import (how "pulling from apps" works)
 

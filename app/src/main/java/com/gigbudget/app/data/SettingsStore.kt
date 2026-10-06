@@ -14,6 +14,11 @@ data class Settings(
     /** Remembered so the quick-add buttons can pre-fill the usual price. */
     val lastBottlePriceCents: Long = 0,
     val lastPrerollPriceCents: Long = 0,
+    /** Monthly plan split, in percent of take-home pay. Keyed by [Bucket.name]. */
+    val bucketPercents: Map<Bucket, Int> = Bucket.entries.associateWith { it.defaultPercent },
+    /** What you expect to make in a month. 0 = estimate from the last 4 weeks of pay. */
+    val expectedMonthlyIncomeCents: Long = 0,
+    val notes: String = "",
 )
 
 class SettingsStore(context: Context) {
@@ -29,6 +34,11 @@ class SettingsStore(context: Context) {
             .putLong("prerollWeeklyLimitCents", next.prerollWeeklyLimitCents)
             .putLong("lastBottlePriceCents", next.lastBottlePriceCents)
             .putLong("lastPrerollPriceCents", next.lastPrerollPriceCents)
+            .putLong("expectedMonthlyIncomeCents", next.expectedMonthlyIncomeCents)
+            .putString("notes", next.notes)
+            .also { editor ->
+                next.bucketPercents.forEach { (bucket, pct) -> editor.putInt("pct_${bucket.name}", pct) }
+            }
             .apply()
         _state.value = next
     }
@@ -39,5 +49,8 @@ class SettingsStore(context: Context) {
         prerollWeeklyLimitCents = prefs.getLong("prerollWeeklyLimitCents", 0),
         lastBottlePriceCents = prefs.getLong("lastBottlePriceCents", 0),
         lastPrerollPriceCents = prefs.getLong("lastPrerollPriceCents", 0),
+        bucketPercents = Bucket.entries.associateWith { prefs.getInt("pct_${it.name}", it.defaultPercent) },
+        expectedMonthlyIncomeCents = prefs.getLong("expectedMonthlyIncomeCents", 0),
+        notes = prefs.getString("notes", "").orEmpty(),
     )
 }

@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.gigbudget.app.BudgetViewModel
+import com.gigbudget.app.data.Bucket
 import com.gigbudget.app.data.BudgetMath
 import com.gigbudget.app.data.Categories
 import com.gigbudget.app.data.Dates
@@ -40,6 +41,7 @@ import com.gigbudget.app.data.Expense
 import com.gigbudget.app.data.Money
 import com.gigbudget.app.data.Period
 import com.gigbudget.app.ui.theme.SpendRed
+import com.gigbudget.app.ui.theme.bucketColor
 
 @Composable
 fun SpendingScreen(vm: BudgetViewModel, modifier: Modifier) {
@@ -78,7 +80,13 @@ fun SpendingScreen(vm: BudgetViewModel, modifier: Modifier) {
             if (expenses.isEmpty()) item { EmptyState("No spending logged yet.") }
             items(expenses, key = { it.id }) { expense ->
                 ListItem(
-                    headlineContent = { Text(Money.format(expense.amountCents), color = SpendRed) },
+                    leadingContent = { LegendDot(bucketColor(Bucket.of(expense.category))) },
+                    headlineContent = {
+                        Text(
+                            Money.format(expense.amountCents),
+                            color = if (expense.category == Categories.SAVINGS) MaterialTheme.colorScheme.onSurface else SpendRed,
+                        )
+                    },
                     overlineContent = { Text(expense.category) },
                     supportingContent = {
                         Text(
@@ -124,7 +132,16 @@ internal fun ExpenseDialog(initial: Expense, onDismiss: () -> Unit, onSave: (Exp
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 MoneyField(amount, { amount = it }, "Amount")
-                ChoiceChips(Categories.all, category, { category = it })
+                val linked = initial.goalId != null || initial.debtId != null
+                if (linked) {
+                    Text(
+                        if (initial.goalId != null) "Money moved into a savings goal. Changing the amount updates the goal."
+                        else "Debt payment. Changing the amount updates the debt's balance.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                } else {
+                    ChoiceChips(Categories.pickable, category, { category = it })
+                }
                 DateButton("Date", date, { if (it != null) date = it })
                 OutlinedTextField(note, { note = it }, label = { Text("Where / note (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 if (initial.auto) {

@@ -24,9 +24,44 @@ object Categories {
     const val RENT = "Rent"
     const val BILLS = "Bills"
     const val PHONE = "Phone"
+    const val HEALTH = "Health"
     const val FUN = "Fun"
+    const val SHOPPING = "Shopping"
+    const val SUBSCRIPTIONS = "Subscriptions"
+    const val GIVING = "Giving"
+    const val DEBT = "Debt"
+    /** Money moved into a savings goal (created from the Goals tab). */
+    const val SAVINGS = "Savings"
     const val OTHER = "Other"
-    val all = listOf(BOTTLE, PREROLL, GAS, FOOD, GROCERIES, CAR, RENT, BILLS, PHONE, FUN, OTHER)
+    val all = listOf(BOTTLE, PREROLL, GAS, FOOD, GROCERIES, CAR, RENT, BILLS, PHONE, HEALTH, FUN, SHOPPING,
+        SUBSCRIPTIONS, GIVING, DEBT, SAVINGS, OTHER)
+    /** Categories offered when adding spending by hand (savings go through the Goals tab). */
+    val pickable = all - SAVINGS
+}
+
+/**
+ * The five parts of the monthly plan. Every spending category belongs to exactly one.
+ * Order is fixed: it is the order of the pie slices and their colors.
+ */
+enum class Bucket(val label: String, val emoji: String, val defaultPercent: Int) {
+    NEEDS("Bills & needs", "🏠", 50),
+    WANTS("Wants", "🛍️", 25),
+    GIVING("Giving", "💝", 5),
+    SAVINGS("Savings", "🐷", 15),
+    DEBT("Debt", "💳", 5);
+
+    companion object {
+        fun of(category: String): Bucket = when (category) {
+            Categories.RENT, Categories.BILLS, Categories.PHONE, Categories.GROCERIES, Categories.GAS,
+            Categories.CAR, Categories.HEALTH -> NEEDS
+            Categories.GIVING -> GIVING
+            Categories.SAVINGS -> SAVINGS
+            Categories.DEBT -> DEBT
+            else -> WANTS
+        }
+
+        fun categoriesIn(bucket: Bucket) = Categories.all.filter { of(it) == bucket }
+    }
 }
 
 /** What the auto-importer does with a given app's notifications. */
@@ -71,6 +106,12 @@ data class Expense(
     val auto: Boolean = false,
     val sourceApp: String = "",
     val dedupeKey: String? = null,
+    /** Set when this is money moved into a savings goal. */
+    val goalId: Long? = null,
+    /** Set when this is a payment toward a tracked debt. */
+    val debtId: Long? = null,
+    /** Set when this pays a monthly bill. */
+    val billId: Long? = null,
 )
 
 @Entity(tableName = "goals")
@@ -80,6 +121,26 @@ data class SavingsGoal(
     val targetCents: Long,
     val savedCents: Long = 0,
     val dueDate: Long? = null,
+)
+
+@Entity(tableName = "debts")
+data class Debt(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val balanceCents: Long,
+    val minPaymentCents: Long = 0,
+    /** Yearly interest rate in percent, e.g. 24.99. 0 if unknown. */
+    val apr: Double = 0.0,
+)
+
+/** A bill that comes due every month on [dueDay] (1–31; clamped to the month's last day). */
+@Entity(tableName = "bills")
+data class Bill(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val amountCents: Long,
+    val dueDay: Int,
+    val category: String = Categories.BILLS,
 )
 
 @Entity(tableName = "watched_apps")

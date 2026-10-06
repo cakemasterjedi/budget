@@ -1,18 +1,25 @@
 package com.gigbudget.app.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -20,28 +27,54 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.gigbudget.app.BudgetViewModel
 import com.gigbudget.app.autoimport.MoneyNotificationListener
+import com.gigbudget.app.data.Bill
+import com.gigbudget.app.data.BillStatus
+import com.gigbudget.app.data.Bucket
 import com.gigbudget.app.data.BudgetMath
 import com.gigbudget.app.data.Categories
 import com.gigbudget.app.data.Dates
+import com.gigbudget.app.data.Expense
+import com.gigbudget.app.data.Income
 import com.gigbudget.app.data.IncomeSources
 import com.gigbudget.app.data.Money
 import com.gigbudget.app.data.Period
-import com.gigbudget.app.ui.theme.IncomeGreen
-import com.gigbudget.app.ui.theme.SpendRed
+import com.gigbudget.app.ui.theme.PinkPurpleGradient
+import com.gigbudget.app.ui.theme.bucketColor
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+private val tips = listOf(
+    "Track your money every day — even a \$3 snack adds up.",
+    "Pay yourself first: move your savings out right after a payout.",
+    "Gig pay has no taxes taken out. Park your tax money where you won't touch it.",
+    "Live below your means: plan on a slow week, celebrate a busy one.",
+    "Check your plan every Sunday and adjust for next week.",
+    "Paying more than the minimum on debt saves you interest every month.",
+    "Set a weekly limit for bottles & prerolls so treats stay fun.",
+)
 
 @Composable
-fun DashboardScreen(vm: BudgetViewModel, modifier: Modifier, onOpenSettings: () -> Unit) {
+fun DashboardScreen(vm: BudgetViewModel, modifier: Modifier, onOpenSettings: () -> Unit, onOpenPlan: () -> Unit) {
     val incomes by vm.incomes.collectAsState()
     val expenses by vm.expenses.collectAsState()
     val goals by vm.goals.collectAsState()
+    val bills by vm.bills.collectAsState()
     val settings by vm.settings.collectAsState()
-    var period by rememberSaveable { mutableStateOf(Period.WEEK) }
+    var period by rememberSaveable { mutableStateOf(Period.MONTH) }
+    var addingIncome by remember { mutableStateOf<Income?>(null) }
+    var addingExpense by remember { mutableStateOf<Expense?>(null) }
+    var payingBill by remember { mutableStateOf<Bill?>(null) }
 
     val context = LocalContext.current
     var autoImportOn by remember { mutableStateOf(MoneyNotificationListener.isEnabled(context)) }
@@ -53,19 +86,57 @@ fun DashboardScreen(vm: BudgetViewModel, modifier: Modifier, onOpenSettings: () 
     val (start, end) = Dates.range(period)
     val summary = BudgetMath.summarize(incomes, expenses, start, end)
     val taxCents = summary.incomeTotal * settings.taxPercent / 100
-    val leftOver = summary.incomeTotal - summary.spendingTotal - taxCents
+    val leftOver = summary.incomeTotal - taxCents - summary.spendingTotal - summary.savingsTotal - summary.debtTotal
     val avgWeekly = BudgetMath.averageWeeklyIncome(incomes)
-    val goalPlans = goals.map { BudgetMath.goalPlan(it, avgWeekly) }
-    val weeklyGoalNeed = goalPlans.sumOf { it.perWeekCents ?: 0 }
+    val weeklyGoalNeed = goals.sumOf { BudgetMath.goalPlan(it, avgWeekly).perWeekCents ?: 0 }
+    val now = System.currentTimeMillis()
 
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        // Hero: what's left, on the pink-purple gradient.
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(PinkPurpleGradient).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            val title = if (period == Period.MONTH) {
+                LocalDate.now().format(DateTimeFormatter.ofPattern("MMMM", Locale.US)) + " · left over"
+            } else "This week · left over"
+            Text(title, color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.labelLarge)
+            Text(Money.format(leftOver), color = Color.White, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
+                StatPill("Earned", Money.format(summary.incomeTotal), Modifier.weight(1f))
+                StatPill("Spent", Money.format(summary.spendingTotal), Modifier.weight(1f))
+                StatPill("Saved", Money.format(summary.savingsTotal), Modifier.weight(1f))
+            }
+            Text(
+                "After ${settings.taxPercent}% for taxes (${Money.format(taxCents)}) and ${Money.format(summary.debtTotal)} of debt payments.",
+                color = Color.White.copy(alpha = 0.85f),
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+
+        // One-tap logging.
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            QuickButton("💵", "Pay", Modifier.weight(1f)) {
+                addingIncome = Income(source = IncomeSources.DOORDASH, amountCents = 0, date = now)
+            }
+            QuickButton("🧾", "Spend", Modifier.weight(1f)) {
+                addingExpense = Expense(category = Categories.OTHER, amountCents = 0, date = now)
+            }
+            QuickButton("🍾", "Bottle", Modifier.weight(1f)) {
+                addingExpense = Expense(category = Categories.BOTTLE, amountCents = settings.lastBottlePriceCents, date = now)
+            }
+            QuickButton("🌿", "Preroll", Modifier.weight(1f)) {
+                addingExpense = Expense(category = Categories.PREROLL, amountCents = settings.lastPrerollPriceCents, date = now)
+            }
+        }
+
         if (!autoImportOn) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Auto-import is off", style = MaterialTheme.typography.titleMedium)
+                    Text("✨ Auto-import is off", style = MaterialTheme.typography.titleMedium)
                     Text("Let Gig Budget read DoorDash, Spark and bank notifications to log pay and spending for you.")
                     Button(onClick = onOpenSettings) { Text("Set it up") }
                 }
@@ -74,21 +145,61 @@ fun DashboardScreen(vm: BudgetViewModel, modifier: Modifier, onOpenSettings: () 
 
         ChoiceChips(Period.entries.map { it.name }, period.name, { period = Period.valueOf(it) }) { Period.valueOf(it).label }
 
-        SectionCard("Income") {
-            Text(Money.format(summary.incomeTotal), style = MaterialTheme.typography.headlineMedium, color = IncomeGreen)
+        // Pie: where the money went, by bucket, with each bucket's categories listed under it.
+        SectionCard("Where your money went", emoji = "🥧") {
+            val outflow = summary.byBucket.values.sum()
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                DonutChart(
+                    slices = Bucket.entries.map { Slice(it.label, summary.byBucket.getValue(it), bucketColor(it)) },
+                    centerTop = Money.format(outflow),
+                    centerBottom = "out ${period.label.lowercase()}",
+                )
+            }
+            if (outflow == 0L) {
+                Text("Nothing spent yet ${period.label.lowercase()}. Log spending and it'll show up here by category.")
+            }
+            Bucket.entries.forEach { bucket ->
+                val total = summary.byBucket.getValue(bucket)
+                if (total > 0) {
+                    LegendRow(bucketColor(bucket), "${bucket.emoji} ${bucket.label}", total, total * 100 / outflow)
+                    expenses.asSequence()
+                        .filter { it.date in start until end && Bucket.of(it.category) == bucket }
+                        .groupBy { it.category }
+                        .mapValues { (_, v) -> v.sumOf { it.amountCents } }
+                        .entries.sortedByDescending { it.value }
+                        .forEach { (category, cents) ->
+                            Row(Modifier.fillMaxWidth().padding(start = 22.dp)) {
+                                Text(category, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                                Text(Money.format(cents), style = MaterialTheme.typography.bodySmall)
+                                Text("${cents * 100 / outflow}%", style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(48.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.End)
+                            }
+                        }
+                }
+            }
+            TextButton(onClick = onOpenPlan) { Text("See your 50% bills / 5% debt plan →") }
+        }
+
+        val upcoming = BudgetMath.billStates(bills, expenses).filter { it.status == BillStatus.OVERDUE || it.status == BillStatus.DUE_SOON }
+        if (upcoming.isNotEmpty()) {
+            SectionCard("Bills coming up", emoji = "📅") {
+                upcoming.forEach { state ->
+                    BillRow(state, onPay = { payingBill = state.bill })
+                }
+            }
+        }
+
+        SectionCard("Income", emoji = "💵") {
             IncomeSources.all.forEach { source ->
                 val cents = summary.incomeBySource[source] ?: 0
                 if (cents > 0 || source != IncomeSources.OTHER) AmountRow(source, cents)
             }
+            HorizontalDivider()
+            AmountRow("Total", summary.incomeTotal, bold = true)
         }
 
-        SectionCard("Spending") {
-            Text(Money.format(summary.spendingTotal), style = MaterialTheme.typography.headlineMedium, color = SpendRed)
-            if (summary.spendingByCategory.isEmpty()) Text("Nothing spent yet.")
-            summary.spendingByCategory.entries.take(5).forEach { (category, cents) -> AmountRow(category, cents) }
-        }
-
-        SectionCard("Bottles & prerolls") {
+        SectionCard("Bottles & prerolls", emoji = "🍾") {
             val weekRange = Dates.range(Period.WEEK)
             val week = BudgetMath.summarize(incomes, expenses, weekRange.first, weekRange.second)
             AmountRow("🍾 Bottles (${summary.bottleCount})", summary.bottleTotal)
@@ -107,40 +218,54 @@ fun DashboardScreen(vm: BudgetViewModel, modifier: Modifier, onOpenSettings: () 
             }
         }
 
-        SectionCard("What's left") {
-            AmountRow("Income", summary.incomeTotal)
-            AmountRow("Spending", -summary.spendingTotal)
-            AmountRow("Set aside for taxes (${settings.taxPercent}%)", -taxCents)
-            HorizontalDivider()
-            AmountRow("Left over", leftOver, color = if (leftOver >= 0) IncomeGreen else SpendRed, bold = true)
-            Text(
-                "Gig pay has no taxes taken out, so park the tax amount somewhere you won't spend it.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-
-        SectionCard("Savings goals") {
+        SectionCard("Savings goals", emoji = "🐷") {
             if (goals.isEmpty()) {
-                Text("Add a goal on the Savings tab to see how much to put away each week.")
+                Text("Add a goal on the Goals tab to see how much to put away each week.")
             } else {
-                Row(Modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Save each week:")
-                    Text(Money.format(weeklyGoalNeed), style = MaterialTheme.typography.titleMedium)
-                }
+                AmountRow("Save each week", weeklyGoalNeed, bold = true)
                 if (avgWeekly > 0 && weeklyGoalNeed > 0) {
-                    Text("≈ ${weeklyGoalNeed * 100 / avgWeekly}% of your average week (${Money.format(avgWeekly)}).")
+                    Text("≈ ${weeklyGoalNeed * 100 / avgWeekly}% of your average week (${Money.format(avgWeekly)}).",
+                        style = MaterialTheme.typography.bodySmall)
                 }
-                goals.zip(goalPlans).take(4).forEach { (goal, plan) ->
-                    AmountRow("${goal.name} — left", plan.remainingCents)
+                goals.take(4).forEach { goal ->
+                    Text("${goal.name}: ${Money.format(goal.savedCents)} of ${Money.format(goal.targetCents)}")
+                    ProgressLine(goal.savedCents, goal.targetCents)
                 }
             }
         }
 
-        if (expenses.none { it.category == Categories.BOTTLE || it.category == Categories.PREROLL }) {
-            Text(
-                "Tip: use the Bottle and Preroll buttons on the Spending tab for one-tap logging.",
-                style = MaterialTheme.typography.bodySmall,
-            )
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("💡")
+                Spacer(Modifier.width(12.dp))
+                Text(tips[LocalDate.now().dayOfYear % tips.size], color = MaterialTheme.colorScheme.onSecondaryContainer)
+            }
+        }
+        Text(
+            "You've got this! 💜",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.secondary,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        )
+    }
+
+    addingIncome?.let { income ->
+        IncomeDialog(income, onDismiss = { addingIncome = null }, onSave = { vm.saveIncome(it); addingIncome = null }, onDelete = null)
+    }
+    addingExpense?.let { expense ->
+        ExpenseDialog(expense, onDismiss = { addingExpense = null }, onSave = { vm.saveExpense(it); addingExpense = null }, onDelete = null)
+    }
+    payingBill?.let { bill ->
+        PayDialog("Pay ${bill.name}", bill.amountCents, onDismiss = { payingBill = null }) { vm.payBill(bill, it); payingBill = null }
+    }
+}
+
+@Composable
+private fun QuickButton(emoji: String, label: String, modifier: Modifier, onClick: () -> Unit) {
+    FilledTonalButton(onClick = onClick, modifier = modifier, contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 10.dp)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(emoji, style = MaterialTheme.typography.titleLarge)
+            Text(label, style = MaterialTheme.typography.labelMedium)
         }
     }
 }
