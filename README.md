@@ -12,8 +12,14 @@ Pink & purple design, five tabs:
   🌿 Preroll** buttons, a **pie chart of where your money went** (by bucket, with every category
   listed underneath with its $ and %), bills coming up, income by DoorDash / Spark, bottle &
   preroll totals with weekly limits, savings progress and a daily budgeting tip.
+- **✂️ Split a paycheck** (Home, or tap any income) – type in a payout and see where every dollar
+  goes: taxes off the top, then an envelope per bucket, with the savings envelope divided between
+  your goals. One tap puts the savings into your goals.
 - **Plan** – your monthly split as a pie chart: **50% bills & needs, 5% debt**, 25% wants (incl.
-  bottles & prerolls), 15% savings, 5% giving. Drag sliders to change it. Shows how each bucket is
+  bottles & prerolls), 15% savings, 5% giving. Drag sliders to change it, or pick a preset
+  (My plan · 55 / 30 / 15 paycheck breakdown · 50 / 30 / 20). Flip back through past months with ‹ ›.
+  **Spending budgets** per category (Groceries $400, Gas $200…) show spent and what's left.
+  Last month's leftover **rolls over** (can be turned off in Settings). Shows how each bucket is
   doing this month, a budget summary (income − taxes − savings − expenses − debt = remaining),
   monthly bills with due dates and a Pay button, and notes & reminders. The plan is built on what
   you expect to make (or your last 4 weeks of pay), after the tax set-aside.

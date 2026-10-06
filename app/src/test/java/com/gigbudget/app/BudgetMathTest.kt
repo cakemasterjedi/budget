@@ -13,6 +13,7 @@ import com.gigbudget.app.data.IncomeSources
 import com.gigbudget.app.data.Money
 import com.gigbudget.app.data.SavingsGoal
 import com.gigbudget.app.data.Settings
+import com.gigbudget.app.data.SplitPreset
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -169,5 +170,70 @@ class BudgetMathTest {
         val settings = Settings(taxPercent = 0, expectedMonthlyIncomeCents = 200_000)
         assertEquals(300_000L, BudgetMath.emergencyFundTarget(settings, emptyList(), emptyList(), today)) // 3 × 50% of $2000
         assertEquals(100_000L, BudgetMath.emergencyFundTarget(Settings(), emptyList(), emptyList(), today))
+    }
+
+    @Test fun splitFiveHundredLikeTheCashStuffingVideo() {
+        val settings = Settings(taxPercent = 0, bucketPercents = SplitPreset.CASH_STUFFING.percents)
+        val split = BudgetMath.splitPaycheck(50_000, settings, emptyList(), 0, today)
+        assertEquals(27_500L, split.bucket(Bucket.NEEDS))   // 45% bills + 10% expenses
+        assertEquals(5_000L, split.bucket(Bucket.DEBT))
+        assertEquals(15_000L, split.bucket(Bucket.SAVINGS))
+        assertEquals(2_500L, split.bucket(Bucket.WANTS))
+        assertEquals(0L, split.bucket(Bucket.GIVING))
+        SplitPreset.entries.forEach { assertEquals(100, it.percents.values.sum()) }
+    }
+
+    @Test fun splitTakesTaxesFirstAndKeepsEveryPenny() {
+        val split = BudgetMath.splitPaycheck(50_001, Settings(taxPercent = 25), emptyList(), 0, today)
+        assertEquals(12_500L, split.taxCents)
+        assertEquals(50_001L, split.taxCents + split.buckets.sumOf { it.second })
+    }
+
+    @Test fun splitShareSavingsBetweenGoalsByWhatTheyNeed() {
+        val settings = Settings(taxPercent = 0, bucketPercents = SplitPreset.CASH_STUFFING.percents) // 30% savings = $150
+        val goals = listOf(
+            SavingsGoal(id = 1, name = "Wedding", targetCents = 40_000, savedCents = 10_000), // needs $300
+            SavingsGoal(id = 2, name = "Family", targetCents = 20_000, savedCents = 10_000),  // needs $100
+            SavingsGoal(id = 3, name = "Done", targetCents = 5_000, savedCents = 5_000),
+        )
+        val shares = BudgetMath.splitPaycheck(50_000, settings, goals, 0, today).goalShares.associate { it.first.id to it.second }
+        assertEquals(mapOf(1L to 11_250L, 2L to 3_750L), shares)
+    }
+
+    @Test fun splitNeverOverfillsAGoal() {
+        val settings = Settings(taxPercent = 0, bucketPercents = SplitPreset.CASH_STUFFING.percents)
+        val goals = listOf(SavingsGoal(id = 1, name = "Almost", targetCents = 10_000, savedCents = 9_000))
+        assertEquals(1_000L, BudgetMath.splitPaycheck(50_000, settings, goals, 0, today).goalShares.single().second)
+    }
+
+    @Test fun rolloverCarriesLastMonthsLeftover() {
+        val lastMonth = at(today.minusMonths(1))
+        val incomes = listOf(Income(source = IncomeSources.DOORDASH, amountCents = 100_000, date = lastMonth))
+        val expenses = listOf(Expense(category = Categories.GAS, amountCents = 30_000, date = lastMonth))
+        val monthStart = Dates.range(com.gigbudget.app.data.Period.MONTH, today).first
+        assertEquals(60_000L, BudgetMath.rollover(Settings(taxPercent = 10), incomes, expenses, monthStart))
+        assertEquals(0L, BudgetMath.rollover(Settings(taxPercent = 10, carryOver = false), incomes, expenses, monthStart))
+    }
+
+    @Test fun categoryBudgetsTrackThisMonthOnly() {
+        val settings = Settings(categoryBudgets = mapOf(Categories.GROCERIES to 40_000, Categories.FOOD to 10_000))
+        val expenses = listOf(
+            Expense(category = Categories.GROCERIES, amountCents = 12_000, date = at(today)),
+            Expense(category = Categories.FOOD, amountCents = 13_000, date = at(today)),
+            Expense(category = Categories.GROCERIES, amountCents = 99_000, date = at(today.minusMonths(1))),
+        )
+        val budgets = BudgetMath.categoryBudgets(settings, expenses, today)
+        assertEquals(listOf(Categories.GROCERIES, Categories.FOOD), budgets.map { it.category })
+        assertEquals(28_000L, budgets[0].leftCents)
+        assertEquals(-3_000L, budgets[1].leftCents)
+    }
+
+    @Test fun splitUsesTheRoundingPennies() {
+        val goals = listOf(
+            SavingsGoal(id = 1, name = "A", targetCents = 150_000, savedCents = 30_000, dueDate = Dates.startOf(today.plusDays(120))),
+            SavingsGoal(id = 2, name = "B", targetCents = 300_000, savedCents = 50_000, dueDate = Dates.startOf(today.plusDays(300))),
+        )
+        val split = BudgetMath.splitPaycheck(50_000, Settings(taxPercent = 20), goals, 0, today)
+        assertEquals(split.bucket(Bucket.SAVINGS), split.goalShares.sumOf { it.second })
     }
 }

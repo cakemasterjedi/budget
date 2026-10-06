@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -43,6 +44,7 @@ fun IncomeScreen(vm: BudgetViewModel, modifier: Modifier) {
     val incomes by vm.incomes.collectAsState()
     val expenses by vm.expenses.collectAsState()
     var editing by remember { mutableStateOf<Income?>(null) }
+    var splitting by remember { mutableStateOf<Income?>(null) }
 
     Box(modifier.fillMaxSize()) {
         LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp)) {
@@ -84,12 +86,22 @@ fun IncomeScreen(vm: BudgetViewModel, modifier: Modifier) {
             onDismiss = { editing = null },
             onSave = { vm.saveIncome(it); editing = null },
             onDelete = if (income.id != 0L) ({ vm.deleteIncome(income); editing = null }) else null,
+            onSplit = if (income.id != 0L) ({ splitting = income; editing = null }) else null,
         )
+    }
+    splitting?.let { income ->
+        PaycheckSplitDialog(vm, income.amountCents, onDismiss = { splitting = null })
     }
 }
 
 @Composable
-internal fun IncomeDialog(initial: Income, onDismiss: () -> Unit, onSave: (Income) -> Unit, onDelete: (() -> Unit)?) {
+internal fun IncomeDialog(
+    initial: Income,
+    onDismiss: () -> Unit,
+    onSave: (Income) -> Unit,
+    onDelete: (() -> Unit)?,
+    onSplit: (() -> Unit)? = null,
+) {
     var source by remember { mutableStateOf(initial.source) }
     var amount by remember { mutableStateOf(Money.toInput(initial.amountCents)) }
     var date by remember { mutableStateOf(initial.date) }
@@ -105,6 +117,9 @@ internal fun IncomeDialog(initial: Income, onDismiss: () -> Unit, onSave: (Incom
                 MoneyField(amount, { amount = it }, "Amount (incl. tips)")
                 DateButton("Date", date, { if (it != null) date = it })
                 OutlinedTextField(note, { note = it }, label = { Text("Note (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                if (onSplit != null) {
+                    FilledTonalButton(onClick = onSplit) { Text("✂️ Split this pay") }
+                }
             }
         },
         confirmButton = {

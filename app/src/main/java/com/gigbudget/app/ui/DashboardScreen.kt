@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -81,6 +82,7 @@ fun DashboardScreen(
     var addingIncome by remember { mutableStateOf<Income?>(null) }
     var addingExpense by remember { mutableStateOf<Expense?>(null) }
     var payingBill by remember { mutableStateOf<Bill?>(null) }
+    var splitting by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     var autoImportOn by remember { mutableStateOf(MoneyNotificationListener.isEnabled(context)) }
@@ -92,7 +94,9 @@ fun DashboardScreen(
     val (start, end) = Dates.range(period)
     val summary = BudgetMath.summarize(incomes, expenses, start, end)
     val taxCents = summary.incomeTotal * settings.taxPercent / 100
-    val leftOver = summary.incomeTotal - taxCents - summary.spendingTotal - summary.savingsTotal - summary.debtTotal
+    // Month view carries last month's leftover in; the week view is just this week.
+    val rollover = if (period == Period.MONTH) BudgetMath.rollover(settings, incomes, expenses, start) else 0L
+    val leftOver = rollover + summary.incomeTotal - taxCents - summary.spendingTotal - summary.savingsTotal - summary.debtTotal
     val avgWeekly = BudgetMath.averageWeeklyIncome(incomes)
     val weeklyGoalNeed = goals.sumOf { BudgetMath.goalPlan(it, avgWeekly).perWeekCents ?: 0 }
     val now = System.currentTimeMillis()
@@ -117,10 +121,15 @@ fun DashboardScreen(
                 StatPill("Saved", Money.format(summary.savingsTotal), Modifier.weight(1f))
             }
             Text(
-                "After ${settings.taxPercent}% for taxes (${Money.format(taxCents)}) and ${Money.format(summary.debtTotal)} of debt payments.",
+                (if (rollover != 0L) "Includes ${Money.format(rollover)} rolled over from last month. " else "") +
+                    "After ${settings.taxPercent}% for taxes (${Money.format(taxCents)}) and ${Money.format(summary.debtTotal)} of debt payments.",
                 color = Color.White.copy(alpha = 0.85f),
                 style = MaterialTheme.typography.bodySmall,
             )
+            Button(
+                onClick = { splitting = true },
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = MaterialTheme.colorScheme.primary),
+            ) { Text("✂️ Split a paycheck") }
         }
 
         // One-tap logging.
@@ -199,6 +208,17 @@ fun DashboardScreen(
         }
 
         SectionCard("Income", emoji = "💵") {
+            if (period == Period.MONTH) {
+                val expected = settings.expectedMonthlyIncomeCents.takeIf { it > 0 } ?: BudgetMath.estimatedMonthlyIncome(incomes)
+                if (expected > 0) {
+                    Text(
+                        "Earned ${Money.format(summary.incomeTotal)} of ${Money.format(expected)} expected" +
+                            " (${summary.incomeTotal * 100 / expected}%)",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    ProgressLine(summary.incomeTotal, expected)
+                }
+            }
             IncomeSources.all.forEach { source ->
                 val cents = summary.incomeBySource[source] ?: 0
                 if (cents > 0 || source != IncomeSources.OTHER) AmountRow(source, cents)
@@ -262,6 +282,9 @@ fun DashboardScreen(
     }
     addingExpense?.let { expense ->
         ExpenseDialog(expense, onDismiss = { addingExpense = null }, onSave = { vm.saveExpense(it); addingExpense = null }, onDelete = null)
+    }
+    if (splitting) {
+        PaycheckSplitDialog(vm, incomes.firstOrNull()?.amountCents ?: 0, onDismiss = { splitting = false })
     }
     payingBill?.let { bill ->
         PayDialog("Pay ${bill.name}", bill.amountCents, onDismiss = { payingBill = null }) { vm.payBill(bill, it); payingBill = null }

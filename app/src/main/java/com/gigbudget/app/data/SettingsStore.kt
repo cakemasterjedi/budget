@@ -22,6 +22,10 @@ data class Settings(
     /** Post a Savings Scout notification after an auto-imported payout. */
     val scoutAlerts: Boolean = true,
     val lastScoutAlertAt: Long = 0,
+    /** Monthly spending budget per category (Groceries $500, Gas $100…). Missing = no budget. */
+    val categoryBudgets: Map<String, Long> = emptyMap(),
+    /** Carry what's left over (or overspent) into the next month. */
+    val carryOver: Boolean = true,
 )
 
 class SettingsStore(context: Context) {
@@ -41,8 +45,13 @@ class SettingsStore(context: Context) {
             .putString("notes", next.notes)
             .putBoolean("scoutAlerts", next.scoutAlerts)
             .putLong("lastScoutAlertAt", next.lastScoutAlertAt)
+            .putBoolean("carryOver", next.carryOver)
             .also { editor ->
                 next.bucketPercents.forEach { (bucket, pct) -> editor.putInt("pct_${bucket.name}", pct) }
+                Categories.all.forEach { category ->
+                    val budget = next.categoryBudgets[category]
+                    if (budget != null && budget > 0) editor.putLong("cb_$category", budget) else editor.remove("cb_$category")
+                }
             }
             .apply()
         _state.value = next
@@ -59,5 +68,7 @@ class SettingsStore(context: Context) {
         notes = prefs.getString("notes", "").orEmpty(),
         scoutAlerts = prefs.getBoolean("scoutAlerts", true),
         lastScoutAlertAt = prefs.getLong("lastScoutAlertAt", 0),
+        categoryBudgets = Categories.all.mapNotNull { c -> prefs.getLong("cb_$c", 0).takeIf { it > 0 }?.let { c to it } }.toMap(),
+        carryOver = prefs.getBoolean("carryOver", true),
     )
 }

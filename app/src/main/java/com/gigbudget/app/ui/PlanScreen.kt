@@ -1,5 +1,6 @@
 package com.gigbudget.app.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,11 +12,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -25,6 +32,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -33,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.gigbudget.app.BudgetViewModel
 import com.gigbudget.app.data.Bill
@@ -44,8 +53,13 @@ import com.gigbudget.app.data.Categories
 import com.gigbudget.app.data.Dates
 import com.gigbudget.app.data.Money
 import com.gigbudget.app.data.Period
+import com.gigbudget.app.data.SplitPreset
 import com.gigbudget.app.ui.theme.IncomeGreen
 import com.gigbudget.app.ui.theme.bucketColor
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun PlanScreen(vm: BudgetViewModel, modifier: Modifier) {
@@ -57,15 +71,32 @@ fun PlanScreen(vm: BudgetViewModel, modifier: Modifier) {
     var adjusting by rememberSaveable { mutableStateOf(false) }
     var editingBill by remember { mutableStateOf<Bill?>(null) }
     var payingBill by remember { mutableStateOf<Bill?>(null) }
+    var editingBudget by remember { mutableStateOf<String?>(null) }
+    var monthsBack by rememberSaveable { mutableIntStateOf(0) }
 
-    val plan = BudgetMath.monthPlan(settings, incomes, expenses)
-    val (start, end) = Dates.range(Period.MONTH)
+    val thisMonth = YearMonth.now()
+    val shownMonth = thisMonth.minusMonths(monthsBack.toLong())
+    val isCurrent = monthsBack == 0
+    // For past months, look at the month as it stood on its last day.
+    val asOf = if (isCurrent) LocalDate.now() else shownMonth.atEndOfMonth()
+    val plan = BudgetMath.monthPlan(settings, incomes, expenses, asOf)
+    val (start, end) = Dates.range(Period.MONTH, asOf)
     val month = BudgetMath.summarize(incomes, expenses, start, end)
+    val monthName = shownMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.US))
 
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        // Month switcher, like a tab per month in a budget spreadsheet.
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { monthsBack++ }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month") }
+            Text(monthName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            IconButton(onClick = { monthsBack-- }, enabled = !isCurrent) {
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month")
+            }
+        }
         // 1. The split, as a pie.
         SectionCard("Your monthly plan", emoji = "🎯", action = {
             TextButton(onClick = { adjusting = !adjusting }) { Text(if (adjusting) "Done" else "Adjust") }
@@ -91,6 +122,21 @@ fun PlanScreen(vm: BudgetViewModel, modifier: Modifier) {
 
             if (adjusting) {
                 HorizontalDivider()
+                Text("Quick picks", style = MaterialTheme.typography.labelLarge)
+                SplitPreset.entries.forEach { preset ->
+                    val active = Bucket.entries.all { (settings.bucketPercents[it] ?: it.defaultPercent) == preset.percents[it] }
+                    OutlinedCard(
+                        onClick = { vm.updateSettings { it.copy(bucketPercents = preset.percents) } },
+                        border = BorderStroke(if (active) 2.dp else 1.dp, if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text(preset.label + if (active) "  ✓" else "", fontWeight = FontWeight.SemiBold)
+                            Text(preset.description, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+                HorizontalDivider()
                 plan.buckets.forEach { b ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         LegendDot(bucketColor(b.bucket))
@@ -112,14 +158,12 @@ fun PlanScreen(vm: BudgetViewModel, modifier: Modifier) {
                     color = if (total == 100) IncomeGreen else MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.labelLarge,
                 )
-                TextButton(onClick = {
-                    vm.updateSettings { it.copy(bucketPercents = Bucket.entries.associateWith { b -> b.defaultPercent }) }
-                }) { Text("Reset to 50 / 25 / 5 / 15 / 5") }
+
             }
         }
 
         // 2. How each bucket is doing this month.
-        SectionCard("This month so far", emoji = "📊") {
+        SectionCard(if (isCurrent) "This month so far" else "How $monthName went", emoji = "📊") {
             plan.buckets.forEach { b ->
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -149,10 +193,42 @@ fun PlanScreen(vm: BudgetViewModel, modifier: Modifier) {
             )
         }
 
+        // Per-category budgets ("variable expenses").
+        SectionCard("Spending budgets", emoji = "🛒", action = {
+            TextButton(onClick = { editingBudget = "" }) { Text("+ Add") }
+        }) {
+            val budgets = BudgetMath.categoryBudgets(settings, expenses, asOf)
+            if (budgets.isEmpty()) {
+                Text("Give a category a monthly limit — like Groceries \$400 or Eating out \$100 — and see what's left as you spend.")
+            }
+            budgets.forEach { b ->
+                Column(Modifier.clickable { editingBudget = b.category }, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(b.category, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text("${Money.format(b.spentCents)} of ${Money.format(b.budgetCents)}")
+                    }
+                    BudgetBar(b.spentCents, b.budgetCents, bucketColor(Bucket.of(b.category)))
+                    Text(
+                        if (b.leftCents >= 0) "${Money.format(b.leftCents)} left" else "${Money.format(-b.leftCents)} over",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (b.leftCents >= 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+            if (budgets.isNotEmpty()) {
+                AmountRow("Budgeted", budgets.sumOf { it.budgetCents })
+                AmountRow("Left", budgets.sumOf { it.leftCents }, bold = true)
+            }
+        }
+
         // 3. Budget summary, like the paper template.
         SectionCard("Budget summary", emoji = "🧮") {
             val tax = month.incomeTotal * settings.taxPercent / 100
-            val remaining = month.incomeTotal - tax - month.savingsTotal - month.spendingTotal - month.debtTotal
+            val rollover = BudgetMath.rollover(settings, incomes, expenses, start)
+            val remaining = rollover + month.incomeTotal - tax - month.savingsTotal - month.spendingTotal - month.debtTotal
+            if (settings.carryOver) {
+                AmountRow("Rollover from ${shownMonth.minusMonths(1).format(DateTimeFormatter.ofPattern("MMMM", Locale.US))}", rollover)
+            }
             AmountRow("Total income", month.incomeTotal)
             AmountRow("− Set aside for taxes", tax)
             AmountRow("− Total savings", month.savingsTotal)
@@ -163,7 +239,7 @@ fun PlanScreen(vm: BudgetViewModel, modifier: Modifier) {
         }
 
         // 4. Monthly bills.
-        SectionCard("Monthly bills", emoji = "📅", action = {
+        if (isCurrent) SectionCard("Monthly bills", emoji = "📅", action = {
             TextButton(onClick = { editingBill = Bill(name = "", amountCents = 0, dueDay = 1) }) { Text("+ Add") }
         }) {
             val states = BudgetMath.billStates(bills, expenses)
@@ -190,6 +266,17 @@ fun PlanScreen(vm: BudgetViewModel, modifier: Modifier) {
         }
     }
 
+    editingBudget?.let { category ->
+        CategoryBudgetDialog(
+            initialCategory = category,
+            budgets = settings.categoryBudgets,
+            onDismiss = { editingBudget = null },
+            onSave = { cat, cents ->
+                vm.updateSettings { s -> s.copy(categoryBudgets = if (cents > 0) s.categoryBudgets + (cat to cents) else s.categoryBudgets - cat) }
+                editingBudget = null
+            },
+        )
+    }
     if (editingIncome) {
         ExpectedIncomeDialog(
             currentCents = settings.expectedMonthlyIncomeCents,
@@ -309,6 +396,39 @@ private fun BillDialog(initial: Bill, onDismiss: () -> Unit, onSave: (Bill) -> U
         },
         dismissButton = {
             if (onDelete != null) TextButton(onClick = onDelete) { Text("Delete") }
+            else TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+@Composable
+private fun CategoryBudgetDialog(
+    initialCategory: String,
+    budgets: Map<String, Long>,
+    onDismiss: () -> Unit,
+    onSave: (String, Long) -> Unit,
+) {
+    val isNew = initialCategory.isEmpty()
+    var category by remember { mutableStateOf(initialCategory.ifEmpty { Categories.GROCERIES }) }
+    var amount by remember { mutableStateOf(Money.toInput(budgets[category] ?: 0)) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (isNew) "New spending budget" else "$category budget") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
+                if (isNew) {
+                    ChoiceChips(
+                        Categories.pickable - setOf(Categories.DEBT, Categories.RENT),
+                        category,
+                        { category = it; amount = Money.toInput(budgets[it] ?: 0) },
+                    )
+                }
+                MoneyField(amount, { amount = it }, "Monthly budget")
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(category, Money.parse(amount) ?: 0) }) { Text("Save") } },
+        dismissButton = {
+            if (!isNew) TextButton(onClick = { onSave(category, 0) }) { Text("Remove") }
             else TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )

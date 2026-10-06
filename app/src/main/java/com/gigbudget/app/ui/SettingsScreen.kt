@@ -191,6 +191,14 @@ fun SettingsScreen(vm: BudgetViewModel, modifier: Modifier) {
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Roll leftover into next month")
+                        Text("Money you didn't spend (or overspent) carries over.", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked = settings.carryOver, onCheckedChange = { on -> vm.updateSettings { it.copy(carryOver = on) } })
+                }
                 MoneyField(bottleLimit, { bottleLimit = it }, "Weekly bottle limit (blank = none)")
                 MoneyField(prerollLimit, { prerollLimit = it }, "Weekly preroll limit (blank = none)")
                 Button(onClick = {

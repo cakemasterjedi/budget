@@ -51,6 +51,21 @@ enum class BillStatus { PAID, OVERDUE, DUE_SOON, LATER }
 
 data class BillState(val bill: Bill, val dueDate: LocalDate, val status: BillStatus, val daysUntilDue: Long)
 
+/** One paycheck, split envelope-style: taxes off the top, then the plan's buckets, then savings by goal. */
+data class PaycheckSplit(
+    val amountCents: Long,
+    val taxCents: Long,
+    val buckets: List<Pair<Bucket, Long>>,
+    /** The savings envelope divided between goals that still need money. */
+    val goalShares: List<Pair<SavingsGoal, Long>>,
+) {
+    fun bucket(b: Bucket) = buckets.first { it.first == b }.second
+}
+
+data class CategoryBudget(val category: String, val budgetCents: Long, val spentCents: Long) {
+    val leftCents get() = budgetCents - spentCents
+}
+
 /** How the Savings Scout got to its number, so the app can show its work. */
 data class ScoutResult(
     /** What's safe to move to savings right now: 0, or $5–$50 in whole dollars. */
@@ -113,6 +128,65 @@ object BudgetMath {
             daysLeft = daysLeft,
             safetyCents = SCOUT_SAFETY_CENTS,
         )
+    }
+
+    /**
+     * Money carried into the month starting at [monthStart]: everything earned before it, minus the
+     * tax set-aside and everything spent, saved or paid on debt before it.
+     */
+    fun rollover(settings: Settings, incomes: List<Income>, expenses: List<Expense>, monthStart: Long): Long {
+        if (!settings.carryOver) return 0
+        val before = summarize(incomes, expenses, Long.MIN_VALUE, monthStart)
+        return before.incomeTotal - before.incomeTotal * settings.taxPercent / 100 -
+            before.spendingTotal - before.savingsTotal - before.debtTotal
+    }
+
+    /**
+     * Splits one payout the way the plan says: taxes first, then each bucket's percent of what's left.
+     * The savings share is divided between unfinished goals by how much each needs per week
+     * (or by what's left to save when no goal has a due date), never giving a goal more than it needs.
+     */
+    fun splitPaycheck(
+        amountCents: Long,
+        settings: Settings,
+        goals: List<SavingsGoal>,
+        avgWeeklyIncomeCents: Long,
+        today: LocalDate = LocalDate.now(),
+    ): PaycheckSplit {
+        val tax = amountCents * settings.taxPercent / 100
+        val rest = amountCents - tax
+        fun pct(b: Bucket) = settings.bucketPercents[b] ?: b.defaultPercent
+        val raw = Bucket.entries.map { b -> b to rest * pct(b) / 100 }
+        // Rounding pennies go to bills & needs when the plan adds up to 100%.
+        val pennies = if (Bucket.entries.sumOf { pct(it) } == 100) rest - raw.sumOf { it.second } else 0
+        val buckets = raw.map { (b, v) -> b to if (b == Bucket.NEEDS) v + pennies else v }
+        val savings = buckets.first { it.first == Bucket.SAVINGS }.second
+
+        val open = goals.filter { it.savedCents < it.targetCents }
+        val weekly = open.map { goalPlan(it, avgWeeklyIncomeCents, today).perWeekCents ?: 0 }
+        val weights = if (weekly.sum() > 0) weekly else open.map { it.targetCents - it.savedCents }
+        val totalWeight = weights.sum()
+        val shares = if (totalWeight <= 0) mutableListOf() else open.zip(weights).map { (goal, w) ->
+            goal to minOf(savings * w / totalWeight, goal.targetCents - goal.savedCents)
+        }.toMutableList()
+        // Hand out the rounding pennies so the whole savings share is used (up to what goals still need).
+        var spareCents = savings - shares.sumOf { it.second }
+        for (i in shares.indices) {
+            if (spareCents <= 0 || spareCents >= 100) break
+            val (goal, share) = shares[i]
+            val extra = minOf(spareCents, goal.targetCents - goal.savedCents - share)
+            shares[i] = goal to share + extra
+            spareCents -= extra
+        }
+        return PaycheckSplit(amountCents, tax, buckets, shares.filter { it.second > 0 })
+    }
+
+    /** Category budgets for the month containing [today], biggest budget first. */
+    fun categoryBudgets(settings: Settings, expenses: List<Expense>, today: LocalDate = LocalDate.now()): List<CategoryBudget> {
+        val (start, end) = Dates.range(Period.MONTH, today)
+        return settings.categoryBudgets.entries.sortedByDescending { it.value }.map { (category, budget) ->
+            CategoryBudget(category, budget, expenses.filter { it.category == category && it.date in start until end }.sumOf { it.amountCents })
+        }
     }
 
     /** The 25 / 50 / 75 / 100% milestone a goal just passed, if any (the highest one). */

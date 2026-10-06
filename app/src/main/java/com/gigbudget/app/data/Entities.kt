@@ -43,6 +43,22 @@ object Categories {
  * The five parts of the monthly plan. Every spending category belongs to exactly one.
  * Order is fixed: it is the order of the pie slices and their colors.
  */
+/** Ready-made splits for the Plan tab. Percents are in [Bucket] order and add up to 100. */
+enum class SplitPreset(val label: String, val description: String, val percents: Map<Bucket, Int>) {
+    MY_PLAN(
+        "My plan", "50% bills & needs, 5% debt, 25% wants, 15% savings, 5% giving",
+        mapOf(Bucket.NEEDS to 50, Bucket.WANTS to 25, Bucket.GIVING to 5, Bucket.SAVINGS to 15, Bucket.DEBT to 5),
+    ),
+    CASH_STUFFING(
+        "55 / 30 / 15", "Paycheck breakdown: 45% bills + 10% expenses, 10% debt, 30% savings/investing/future, 5% fun",
+        mapOf(Bucket.NEEDS to 55, Bucket.WANTS to 5, Bucket.GIVING to 0, Bucket.SAVINGS to 30, Bucket.DEBT to 10),
+    ),
+    FIFTY_THIRTY_TWENTY(
+        "50 / 30 / 20", "50% needs, 30% wants, 20% savings & debt",
+        mapOf(Bucket.NEEDS to 50, Bucket.WANTS to 30, Bucket.GIVING to 0, Bucket.SAVINGS to 15, Bucket.DEBT to 5),
+    ),
+}
+
 enum class Bucket(val label: String, val emoji: String, val defaultPercent: Int) {
     NEEDS("Bills & needs", "🏠", 50),
     WANTS("Wants", "🛍️", 25),
@@ -124,6 +140,7 @@ enum class GoalCategory(val label: String, val emoji: String) {
     HOLIDAY("Holidays & gifts", "🎁"),
     SCHOOL("School", "🎓"),
     TAXES("Taxes", "🧾"),
+    INVESTING("Investing (401k, IRA)", "📈"),
     OTHER("Other", "🎯");
 
     companion object {
