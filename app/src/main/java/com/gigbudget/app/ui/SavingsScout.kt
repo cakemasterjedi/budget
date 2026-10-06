@@ -124,7 +124,7 @@ private fun SaveToGoalDialog(amountCents: Long, goals: List<SavingsGoal>, onDism
                     }
                 }
                 Text(
-                    "Move the money to your savings account in your bank app too — Gig Budget keeps score, your bank holds the cash.",
+                    "Move the money to your savings account in your bank app too — Stack It keeps score, your bank holds the cash.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

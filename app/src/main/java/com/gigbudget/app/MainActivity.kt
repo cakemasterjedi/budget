@@ -100,7 +100,7 @@ private fun MainScreen(requestedTab: String?, onTabHandled: () -> Unit, vm: Budg
                 TopAppBar(
                     title = {
                         Text(
-                            if (tab == Tab.HOME) "Gig Budget 💜" else tab.title,
+                            if (tab == Tab.HOME) "Stack It, Niome 💜" else tab.title,
                             fontWeight = FontWeight.Bold,
                         )
                     },

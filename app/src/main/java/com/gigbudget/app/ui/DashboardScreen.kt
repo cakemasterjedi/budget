@@ -105,6 +105,8 @@ fun DashboardScreen(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        Greeting()
+
         // Hero: what's left, on the pink-purple gradient.
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(PinkPurpleGradient).padding(20.dp),
@@ -154,7 +156,7 @@ fun DashboardScreen(
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("✨ Auto-import is off", style = MaterialTheme.typography.titleMedium)
-                    Text("Let Gig Budget read DoorDash, Spark and bank notifications to log pay and spending for you.")
+                    Text("Let Stack It read DoorDash, Spark and bank notifications to log pay and spending for you.")
                     Button(onClick = onOpenSettings) { Text("Set it up") }
                 }
             }
@@ -270,7 +272,7 @@ fun DashboardScreen(
             }
         }
         Text(
-            "You've got this! 💜",
+            "You've got this, $NAME! 💜",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.secondary,
             modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -288,6 +290,43 @@ fun DashboardScreen(
     }
     payingBill?.let { bill ->
         PayDialog("Pay ${bill.name}", bill.amountCents, onDismiss = { payingBill = null }) { vm.payBill(bill, it); payingBill = null }
+    }
+}
+
+private const val NAME = "Niome"
+
+private val hype = listOf(
+    "Let's stack it 💸",
+    "Every dash counts 🚗",
+    "Your future self says thank you 💜",
+    "Secure the bag, then save the bag 👜",
+    "Small stacks turn into big stacks 📈",
+    "You're doing amazing, sweetie ✨",
+    "Bills paid, goals funded, vibes immaculate 💅",
+)
+
+/** "Good morning, Niome 💜" plus a little daily hype line. */
+@Composable
+private fun Greeting() {
+    val hour = java.time.LocalTime.now().hour
+    val hello = when (hour) {
+        in 5..11 -> "Good morning"
+        in 12..16 -> "Good afternoon"
+        in 17..21 -> "Good evening"
+        else -> "Hey night owl"
+    }
+    Column {
+        Text(
+            "$hello, $NAME 💜",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            hype[LocalDate.now().dayOfYear % hype.size],
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary,
+        )
     }
 }
 

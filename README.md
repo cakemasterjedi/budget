@@ -1,4 +1,4 @@
-# Gig Budget
+# Stack It, Niome 💜
 
 An Android budget app for gig drivers: it tracks **DoorDash** and **Spark** pay, shows how much to
 save each week for the things you're saving for, has one-tap **Bottle** and **Preroll** spending
@@ -40,7 +40,7 @@ Categories and buckets: **Bills & needs** = Rent, Bills, Phone, Groceries, Gas, 
 
 ## Automatic import (how "pulling from apps" works)
 
-DoorDash, Spark and banks don't offer a public API an app on your phone can use, so Gig Budget
+DoorDash, Spark and banks don't offer a public API an app on your phone can use, so Stack It
 reads the **notifications** those apps already send you instead:
 
 | App notification | Becomes |
@@ -65,7 +65,7 @@ deposits are counted instead.
 notification from the apps you watch, what it became, or why it was skipped. Skipped ones
 have **Add as income** / **Add as spending** buttons so nothing real gets lost.
 
-To turn it on: **Settings → Allow notification access → Gig Budget**. Make sure the DoorDash,
+To turn it on: **Settings → Allow notification access → Stack It, Niome**. Make sure the DoorDash,
 Spark and bank apps have their own notifications (and purchase alerts) turned on.
 
 - Each watched app is set to one of: **DoorDash pay**, **Spark pay**, **Money in & out** (purchases

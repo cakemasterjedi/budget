@@ -88,7 +88,7 @@ fun SettingsScreen(vm: BudgetViewModel, modifier: Modifier) {
                     )
                 } else {
                     Text(
-                        "Gig Budget can log your income and spending for you by reading the notifications " +
+                        "Stack It can log your income and spending for you by reading the notifications " +
                             "DoorDash, Spark and your bank/payment apps already send (\"You earned \$X\", " +
                             "\"Deposit of \$X received\", \"You spent \$X at …\"). Everything stays on your phone — " +
                             "the app has no internet access."
