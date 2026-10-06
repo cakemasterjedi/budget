@@ -48,7 +48,7 @@ import com.gigbudget.app.data.Dates
 import com.gigbudget.app.data.GoalPlan
 import com.gigbudget.app.data.Money
 import com.gigbudget.app.data.SavingsGoal
-import com.gigbudget.app.ui.theme.IncomeGreen
+import com.gigbudget.app.ui.theme.MoneyInColor
 
 @Composable
 fun GoalsScreen(vm: BudgetViewModel, modifier: Modifier) {
@@ -187,7 +187,7 @@ private fun GoalCard(goal: SavingsGoal, plan: GoalPlan, onAdd: () -> Unit, onTak
         ProgressLine(goal.savedCents, goal.targetCents)
         val due = goal.dueDate
         when {
-            plan.remainingCents == 0L -> Text("Goal reached 🎉", color = IncomeGreen)
+            plan.remainingCents == 0L -> Text("Goal reached 🎉", color = MoneyInColor)
             due == null -> Text("${Money.format(plan.remainingCents)} to go. Set a due date to get a weekly target.")
             (plan.daysLeft ?: 0) <= 0 -> Text(
                 "Due ${Dates.formatLong(due)} — ${Money.format(plan.remainingCents)} still needed.",
@@ -270,7 +270,7 @@ private fun AdjustDialog(goal: SavingsGoal, adding: Boolean, suggestedCents: Lon
 private fun DebtCard(debt: Debt, paidThisMonth: Long, onPay: () -> Unit, onEdit: () -> Unit) {
     SectionCard(debt.name, emoji = "💳") {
         if (debt.balanceCents == 0L) {
-            Text("Paid off! 🎉", color = IncomeGreen, fontWeight = FontWeight.SemiBold)
+            Text("Paid off! 🎉", color = MoneyInColor, fontWeight = FontWeight.SemiBold)
         } else {
             Text(Money.format(debt.balanceCents), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             val details = buildList {

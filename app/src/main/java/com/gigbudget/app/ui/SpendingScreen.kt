@@ -40,7 +40,7 @@ import com.gigbudget.app.data.Dates
 import com.gigbudget.app.data.Expense
 import com.gigbudget.app.data.Money
 import com.gigbudget.app.data.Period
-import com.gigbudget.app.ui.theme.SpendRed
+import com.gigbudget.app.ui.theme.MoneyOutColor
 import com.gigbudget.app.ui.theme.bucketColor
 
 @Composable
@@ -74,7 +74,7 @@ fun SpendingScreen(vm: BudgetViewModel, modifier: Modifier) {
                             "${week.prerollCount} prerolls (${Money.format(week.prerollTotal)})",
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    AmountRow("All spending this week", week.spendingTotal, color = SpendRed, bold = true)
+                    AmountRow("All spending this week", week.spendingTotal, color = MoneyOutColor, bold = true)
                 }
             }
             if (expenses.isEmpty()) item { EmptyState("No spending logged yet.") }
@@ -84,7 +84,7 @@ fun SpendingScreen(vm: BudgetViewModel, modifier: Modifier) {
                     headlineContent = {
                         Text(
                             Money.format(expense.amountCents),
-                            color = if (expense.category == Categories.SAVINGS) MaterialTheme.colorScheme.onSurface else SpendRed,
+                            color = if (expense.category == Categories.SAVINGS) MaterialTheme.colorScheme.onSurface else MoneyOutColor,
                         )
                     },
                     overlineContent = { Text(expense.category) },

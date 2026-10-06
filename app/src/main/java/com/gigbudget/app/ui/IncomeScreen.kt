@@ -37,7 +37,7 @@ import com.gigbudget.app.data.Income
 import com.gigbudget.app.data.IncomeSources
 import com.gigbudget.app.data.Money
 import com.gigbudget.app.data.Period
-import com.gigbudget.app.ui.theme.IncomeGreen
+import com.gigbudget.app.ui.theme.MoneyInColor
 
 @Composable
 fun IncomeScreen(vm: BudgetViewModel, modifier: Modifier) {
@@ -54,14 +54,14 @@ fun IncomeScreen(vm: BudgetViewModel, modifier: Modifier) {
                 SectionCard("This week") {
                     IncomeSources.all.forEach { AmountRow(it, week.incomeBySource[it] ?: 0) }
                     HorizontalDivider()
-                    AmountRow("Total", week.incomeTotal, color = IncomeGreen, bold = true)
+                    AmountRow("Total", week.incomeTotal, color = MoneyInColor, bold = true)
                     AmountRow("4-week average", BudgetMath.averageWeeklyIncome(incomes))
                 }
             }
             if (incomes.isEmpty()) item { EmptyState("No income yet. Tap “Add pay” after a shift.") }
             items(incomes, key = { it.id }) { income ->
                 ListItem(
-                    headlineContent = { Text(Money.format(income.amountCents), color = IncomeGreen) },
+                    headlineContent = { Text(Money.format(income.amountCents), color = MoneyInColor) },
                     overlineContent = { Text(income.source) },
                     supportingContent = {
                         Text(listOf(Dates.formatShort(income.date), income.note).filter { it.isNotBlank() }.joinToString(" · "))

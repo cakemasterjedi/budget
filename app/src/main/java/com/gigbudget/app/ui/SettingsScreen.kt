@@ -51,7 +51,7 @@ import com.gigbudget.app.data.Money
 import com.gigbudget.app.data.Outcomes
 import com.gigbudget.app.data.Roles
 import com.gigbudget.app.data.WatchedApp
-import com.gigbudget.app.ui.theme.IncomeGreen
+import com.gigbudget.app.ui.theme.MoneyInColor
 
 @Composable
 fun SettingsScreen(vm: BudgetViewModel, modifier: Modifier) {
@@ -84,7 +84,7 @@ fun SettingsScreen(vm: BudgetViewModel, modifier: Modifier) {
                 if (enabled) {
                     ListItem(
                         headlineContent = { Text("On — watching notifications") },
-                        leadingContent = { Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = IncomeGreen) },
+                        leadingContent = { Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MoneyInColor) },
                     )
                 } else {
                     Text(

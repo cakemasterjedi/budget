@@ -42,8 +42,8 @@ import com.gigbudget.app.data.IncomeSources
 import com.gigbudget.app.data.Money
 import com.gigbudget.app.data.NotificationLog
 import com.gigbudget.app.data.Outcomes
-import com.gigbudget.app.ui.theme.IncomeGreen
-import com.gigbudget.app.ui.theme.SpendRed
+import com.gigbudget.app.ui.theme.MoneyInColor
+import com.gigbudget.app.ui.theme.MoneyOutColor
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -146,8 +146,8 @@ private fun LogCard(entry: NotificationLog, onAddIncome: () -> Unit, onAddExpens
             if (entry.text.isNotBlank()) Text(entry.text, style = MaterialTheme.typography.bodySmall, maxLines = 4)
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
             val color = when (entry.outcome) {
-                Outcomes.INCOME -> IncomeGreen
-                Outcomes.EXPENSE -> SpendRed
+                Outcomes.INCOME -> MoneyInColor
+                Outcomes.EXPENSE -> MoneyOutColor
                 else -> MaterialTheme.colorScheme.onSurfaceVariant
             }
             Text(

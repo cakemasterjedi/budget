@@ -128,7 +128,7 @@ fun DashboardScreen(
             )
             Button(
                 onClick = { splitting = true },
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = MaterialTheme.colorScheme.primary),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF7B1FA2)),
             ) { Text("✂️ Split a paycheck") }
         }
 

@@ -13,64 +13,77 @@ import androidx.compose.ui.unit.dp
 import com.gigbudget.app.data.Bucket
 
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF8A3FC4),
+    primary = Color(0xFF8E24AA),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFF1DCFF),
-    onPrimaryContainer = Color(0xFF2E0050),
-    secondary = Color(0xFFC2397E),
+    primaryContainer = Color(0xFFF3D6FF),
+    onPrimaryContainer = Color(0xFF34004A),
+    secondary = Color(0xFFD81B60),
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFFFD9E8),
-    onSecondaryContainer = Color(0xFF3E0022),
-    tertiary = Color(0xFF6F4FB8),
-    tertiaryContainer = Color(0xFFEADDFF),
-    onTertiaryContainer = Color(0xFF24005A),
-    background = Color(0xFFFFF7FB),
-    onBackground = Color(0xFF221A22),
-    surface = Color(0xFFFFF7FB),
-    onSurface = Color(0xFF221A22),
-    surfaceVariant = Color(0xFFF3E3F0),
-    onSurfaceVariant = Color(0xFF574A57),
+    secondaryContainer = Color(0xFFFFD3E5),
+    onSecondaryContainer = Color(0xFF4A0021),
+    tertiary = Color(0xFFAB47BC),
+    tertiaryContainer = Color(0xFFF6DBFF),
+    onTertiaryContainer = Color(0xFF3B0050),
+    background = Color(0xFFFBEFFF),
+    onBackground = Color(0xFF241628),
+    surface = Color(0xFFFBEFFF),
+    onSurface = Color(0xFF241628),
+    surfaceVariant = Color(0xFFF2DDF4),
+    onSurfaceVariant = Color(0xFF5B4560),
     surfaceContainerLowest = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFFFF0F7),
-    surfaceContainer = Color(0xFFFBEAF4),
-    surfaceContainerHigh = Color(0xFFF7E3EF),
-    surfaceContainerHighest = Color(0xFFF1DDEA),
-    outline = Color(0xFF8A7A89),
-    outlineVariant = Color(0xFFDCC8D9),
+    surfaceContainerLow = Color(0xFFFFF3FA),
+    surfaceContainer = Color(0xFFF7E1F5),
+    surfaceContainerHigh = Color(0xFFF3D9F1),
+    surfaceContainerHighest = Color(0xFFEED1EC),
+    outline = Color(0xFF8E7491),
+    outlineVariant = Color(0xFFE2C6E4),
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFFDDB5FF),
-    onPrimary = Color(0xFF47007A),
-    primaryContainer = Color(0xFF6A23A3),
-    onPrimaryContainer = Color(0xFFF1DCFF),
-    secondary = Color(0xFFFFB0CF),
-    onSecondary = Color(0xFF5E1140),
-    secondaryContainer = Color(0xFF7D2758),
-    onSecondaryContainer = Color(0xFFFFD9E8),
-    tertiary = Color(0xFFCFBDFF),
-    tertiaryContainer = Color(0xFF55379D),
-    onTertiaryContainer = Color(0xFFEADDFF),
-    background = Color(0xFF1E1726),
-    onBackground = Color(0xFFEDE0EA),
-    surface = Color(0xFF1E1726),
-    onSurface = Color(0xFFEDE0EA),
-    surfaceVariant = Color(0xFF4B3F4C),
-    onSurfaceVariant = Color(0xFFD8C2D5),
-    surfaceContainerLowest = Color(0xFF180F1F),
-    surfaceContainerLow = Color(0xFF261E2E),
-    surfaceContainer = Color(0xFF2B2233),
-    surfaceContainerHigh = Color(0xFF362C3E),
-    surfaceContainerHighest = Color(0xFF41374A),
-    outline = Color(0xFFA08DA0),
-    outlineVariant = Color(0xFF4B3F4C),
+    primary = Color(0xFFE3A6FF),
+    onPrimary = Color(0xFF4C0068),
+    primaryContainer = Color(0xFF6E1B8C),
+    onPrimaryContainer = Color(0xFFF7DCFF),
+    secondary = Color(0xFFFF9EC3),
+    onSecondary = Color(0xFF65002E),
+    secondaryContainer = Color(0xFF8E1A4B),
+    onSecondaryContainer = Color(0xFFFFD9E6),
+    tertiary = Color(0xFFD9B2FF),
+    tertiaryContainer = Color(0xFF5C2D8A),
+    onTertiaryContainer = Color(0xFFF1DBFF),
+    background = Color(0xFF1C1022),
+    onBackground = Color(0xFFF1DEF2),
+    surface = Color(0xFF1C1022),
+    onSurface = Color(0xFFF1DEF2),
+    surfaceVariant = Color(0xFF4D3A52),
+    onSurfaceVariant = Color(0xFFDCC1DE),
+    surfaceContainerLowest = Color(0xFF2A1A31),
+    surfaceContainerLow = Color(0xFF26172C),
+    surfaceContainer = Color(0xFF2E1D35),
+    surfaceContainerHigh = Color(0xFF392740),
+    surfaceContainerHighest = Color(0xFF45314C),
+    outline = Color(0xFFA78CA9),
+    outlineVariant = Color(0xFF4D3A52),
 )
 
-val IncomeGreen = Color(0xFF2E9E4F)
-val SpendRed = Color(0xFFD64545)
+/** Money coming in: purple. */
+val MoneyInColor: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFFE3A6FF) else Color(0xFF7B1FA2)
+
+/** Money going out: hot pink. (Over-budget warnings use the theme's error red instead.) */
+val MoneyOutColor: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFFFF8AB8) else Color(0xFFC2185B)
+
+/** Soft lavender-to-pink wash behind every screen. */
+val BackgroundWash: Brush
+    @Composable get() = if (isSystemInDarkTheme()) {
+        Brush.verticalGradient(listOf(Color(0xFF1C1022), Color(0xFF26101F)))
+    } else {
+        Brush.verticalGradient(listOf(Color(0xFFF6EAFF), Color(0xFFFFEDF6)))
+    }
 
 /** Header gradient: pink into purple. White text on it stays above 4.5:1. */
-val PinkPurpleGradient = Brush.linearGradient(listOf(Color(0xFFC2397E), Color(0xFF6F3FB8)))
+val PinkPurpleGradient = Brush.linearGradient(listOf(Color(0xFFD81B60), Color(0xFF8E24AA), Color(0xFF6A1B9A)))
 
 /**
  * One fixed color per budget bucket, used by every chart, bar and legend dot. The order

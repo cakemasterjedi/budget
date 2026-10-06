@@ -30,7 +30,7 @@ import com.gigbudget.app.data.BudgetMath
 import com.gigbudget.app.data.GoalCategory
 import com.gigbudget.app.data.Money
 import com.gigbudget.app.data.SavingsGoal
-import com.gigbudget.app.ui.theme.IncomeGreen
+import com.gigbudget.app.ui.theme.MoneyInColor
 
 /**
  * Savings Scout: looks at what's left this month, bills and debt payments still due and your
@@ -58,7 +58,7 @@ fun SavingsScoutCard(vm: BudgetViewModel, onNeedGoal: () -> Unit) {
                 "${Money.format(scout.amountCents)} today",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = IncomeGreen,
+                color = MoneyInColor,
             )
             FilledTonalButton(onClick = { if (goals.isEmpty()) onNeedGoal() else saving = true }) {
                 Text(if (goals.isEmpty()) "Make a goal to save it in" else "Save ${Money.format(scout.amountCents)}")

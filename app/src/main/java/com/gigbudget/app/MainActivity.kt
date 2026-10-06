@@ -4,7 +4,10 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
@@ -17,9 +20,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -29,6 +34,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -38,7 +44,9 @@ import com.gigbudget.app.ui.MilestoneDialog
 import com.gigbudget.app.ui.MoneyScreen
 import com.gigbudget.app.ui.PlanScreen
 import com.gigbudget.app.ui.SettingsScreen
+import com.gigbudget.app.ui.theme.BackgroundWash
 import com.gigbudget.app.ui.theme.GigBudgetTheme
+import com.gigbudget.app.ui.theme.PinkPurpleGradient
 
 class MainActivity : ComponentActivity() {
     /** Tab requested by a notification tap; consumed by [MainScreen]. */
@@ -46,7 +54,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // White status-bar icons over the pink/purple top bar.
+        enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
         requestedTab.value = intent?.getStringExtra(EXTRA_OPEN_TAB)
         setContent {
             GigBudgetTheme {
@@ -84,23 +93,37 @@ private fun MainScreen(requestedTab: String?, onTabHandled: () -> Unit, vm: Budg
     }
     val tab = Tab.entries[tabIndex]
     Scaffold(
+        modifier = Modifier.background(BackgroundWash),
+        containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(title = {
-                Text(
-                    if (tab == Tab.HOME) "Gig Budget 💜" else tab.title,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+            Box(Modifier.background(PinkPurpleGradient)) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            if (tab == Tab.HOME) "Gig Budget 💜" else tab.title,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        titleContentColor = Color.White,
+                    ),
                 )
-            })
+            }
         },
         bottomBar = {
-            NavigationBar {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
                 Tab.entries.forEachIndexed { index, t ->
                     NavigationBarItem(
                         selected = index == tabIndex,
                         onClick = { tabIndex = index },
                         icon = { Icon(t.icon, contentDescription = null) },
-                        label = { Text(t.title) },
+                        label = { Text(t.title, fontWeight = if (index == tabIndex) FontWeight.Bold else null) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            selectedTextColor = MaterialTheme.colorScheme.secondary,
+                            indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
+                        ),
                     )
                 }
             }

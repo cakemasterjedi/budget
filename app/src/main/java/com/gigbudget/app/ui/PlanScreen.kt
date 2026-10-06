@@ -54,7 +54,7 @@ import com.gigbudget.app.data.Dates
 import com.gigbudget.app.data.Money
 import com.gigbudget.app.data.Period
 import com.gigbudget.app.data.SplitPreset
-import com.gigbudget.app.ui.theme.IncomeGreen
+import com.gigbudget.app.ui.theme.MoneyInColor
 import com.gigbudget.app.ui.theme.bucketColor
 import java.time.LocalDate
 import java.time.YearMonth
@@ -155,7 +155,7 @@ fun PlanScreen(vm: BudgetViewModel, modifier: Modifier) {
                 val total = plan.percentTotal
                 Text(
                     if (total == 100) "Adds up to 100% ✓" else "Adds up to $total% — make it 100% so every dollar has a job.",
-                    color = if (total == 100) IncomeGreen else MaterialTheme.colorScheme.error,
+                    color = if (total == 100) MoneyInColor else MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.labelLarge,
                 )
 
@@ -235,7 +235,7 @@ fun PlanScreen(vm: BudgetViewModel, modifier: Modifier) {
             AmountRow("− Total expenses", month.spendingTotal)
             AmountRow("− Total debt payments", month.debtTotal)
             HorizontalDivider()
-            AmountRow("= Remaining balance", remaining, color = if (remaining >= 0) IncomeGreen else MaterialTheme.colorScheme.error, bold = true)
+            AmountRow("= Remaining balance", remaining, color = if (remaining >= 0) MoneyInColor else MaterialTheme.colorScheme.error, bold = true)
         }
 
         // 4. Monthly bills.
@@ -314,7 +314,7 @@ internal fun BillRow(state: BillState, onPay: () -> Unit, onClick: (() -> Unit)?
         }
         when (state.status) {
             BillStatus.PAID -> AssistChip(onClick = {}, label = { Text("Paid ✓") },
-                colors = AssistChipDefaults.assistChipColors(labelColor = IncomeGreen))
+                colors = AssistChipDefaults.assistChipColors(labelColor = MoneyInColor))
             else -> {
                 Text(
                     when (state.status) {

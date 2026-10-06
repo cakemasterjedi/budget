@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Three rising bars: a simple "money growing" mark. -->
+<!-- A white heart with three rising purple bars: "love your money". -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:fillColor="#FFFFFF" android:pathData="M36,64h9v12h-9z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M49.5,52h9v24h-9z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M63,38h9v38h-9z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M32,79h44v3h-44z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,80 C33,66 29,52 33,44 C37,36 48,35 54,44 C60,35 71,36 75,44 C79,52 75,66 54,80Z" />
+    <path android:fillColor="#8E24AA" android:pathData="M43,57h5v7h-5z" />
+    <path android:fillColor="#8E24AA" android:pathData="M51.5,51h5v13h-5z" />
+    <path android:fillColor="#D81B60" android:pathData="M60,45h5v19h-5z" />
 </vector>
