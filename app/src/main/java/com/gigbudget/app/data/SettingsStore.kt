@@ -38,6 +38,8 @@ data class Settings(
     val lastAutoBackupAt: Long = 0,
     /** Why the last automatic backup failed, or empty. */
     val autoBackupError: String = "",
+    /** Which version of the built-in "apps to watch" list this install has picked up. */
+    val knownAppsVersion: Int = 1,
 )
 
 private const val BUDGET_PREFIX = "cb_"
@@ -50,6 +52,11 @@ class SettingsStore(context: Context) {
     private val _state = MutableStateFlow(load().also { CategoryRules.current = it.categoryRules })
     val state: StateFlow<Settings> = _state.asStateFlow()
 
+    /**
+     * Read-modify-write of all settings. Synchronized because updates come from the UI and from
+     * background work (auto-import, backups, startup); without it, two at once could lose one change.
+     */
+    @Synchronized
     fun update(transform: (Settings) -> Settings) {
         val next = transform(_state.value)
         prefs.edit()
@@ -69,6 +76,7 @@ class SettingsStore(context: Context) {
             .putString("autoBackupName", next.autoBackupName)
             .putLong("lastAutoBackupAt", next.lastAutoBackupAt)
             .putString("autoBackupError", next.autoBackupError)
+            .putInt("knownAppsVersion", next.knownAppsVersion)
             .also { editor ->
                 next.bucketPercents.forEach { (bucket, pct) -> editor.putInt("pct_${bucket.name}", pct) }
                 // Category budgets live under "cb_<category>"; rewrite them all so removed ones disappear.
@@ -81,6 +89,7 @@ class SettingsStore(context: Context) {
     }
 
     /** Re-reads everything from disk (after a restore). */
+    @Synchronized
     fun reload() {
         val loaded = load()
         CategoryRules.current = loaded.categoryRules
@@ -105,6 +114,7 @@ class SettingsStore(context: Context) {
     }
 
     /** Replaces all preferences with the ones from a backup file, then reloads. */
+    @Synchronized
     fun importJson(json: JSONObject) {
         // The Drive connection belongs to this phone, so restoring a backup keeps it as it is.
         val keep = prefs.all.filterKeys { it in DEVICE_ONLY_KEYS }
@@ -151,5 +161,6 @@ class SettingsStore(context: Context) {
         autoBackupName = prefs.getString("autoBackupName", "").orEmpty(),
         lastAutoBackupAt = prefs.getLong("lastAutoBackupAt", 0),
         autoBackupError = prefs.getString("autoBackupError", "").orEmpty(),
+        knownAppsVersion = prefs.getInt("knownAppsVersion", 1),
     )
 }

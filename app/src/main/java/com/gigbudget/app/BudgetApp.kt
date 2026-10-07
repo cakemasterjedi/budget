@@ -1,11 +1,13 @@
 package com.gigbudget.app
 
 import android.app.Application
+import com.gigbudget.app.autoimport.KnownApps
 import com.gigbudget.app.data.AppDatabase
 import com.gigbudget.app.data.AutoBackup
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import com.gigbudget.app.data.SettingsStore
 
 class BudgetApp : Application() {
@@ -18,6 +20,7 @@ class BudgetApp : Application() {
         // notification listener, before any screen asks.
         settings
         if (settings.state.value.autoBackupUri.isNotEmpty()) AutoBackup.schedule(this)
+        appScope.launch { KnownApps.sync(db, settings) }
     }
 
     /** For work that should finish even after the screen that started it closes. */

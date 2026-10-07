@@ -13,8 +13,8 @@ android {
         applicationId = "com.gigbudget.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 4
+        versionName = "1.3"
     }
 
     // Builds are signed with a key kept outside git (app/signing/stackit.keystore, gitignored) so
