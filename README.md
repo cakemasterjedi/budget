@@ -34,8 +34,9 @@ Pink & purple design, five tabs:
   (at most every 3 hours). Inspired by Huntington's Money Scout and Savings Goal Getter.
 - **Settings** – auto-import setup, which apps to watch, tax %, weekly bottle/preroll limits,
   **✏️ Edit categories** (rename the five parts of the plan, change emojis, move or hide categories,
-  add your own like Nails or Hair) and **💾 Back up & restore** (save everything to a file, restore it
-  after a reinstall or on a new phone).
+  add your own like Nails or Hair), **☁️ Google Drive backup** (connect once; the app updates its
+  backup file in Drive every day and when you leave the app after 6+ hours) and **💾 Backup file**
+  (save or restore a copy anywhere).
 
 ## Keeping data safe across updates
 
@@ -43,7 +44,8 @@ Pink & purple design, five tabs:
 - Android only accepts an update signed with the same key as the installed app. Builds use the key
   in `app/signing/stackit.keystore`, which is kept out of git; put the same file there on any
   machine that builds releases, or updates will be refused.
-- Save a backup file from Settings now and then. It works no matter how the app was installed.
+- Turn on Google Drive backup in Settings. It works no matter how the app was installed, and
+  "Restore" brings everything back after a reinstall or on a new phone.
 
 Categories and buckets: **Bills & needs** = Rent, Bills, Phone, Groceries, Gas, Car, Health ·
 **Wants** = Food (eating out), Fun, Shopping, Subscriptions, Bottle, Preroll, Other ·

@@ -113,7 +113,8 @@ fun PlanScreen(vm: BudgetViewModel, modifier: Modifier) {
                 LegendRow(bucketColor(b.bucket), "${b.bucket.emoji} ${b.bucket.label}", b.plannedCents, b.percent.toLong())
             }
             Text(
-                (if (plan.basisIsEstimate) "Based on about ${Money.format(plan.basisIncomeCents)}/month (from your last 4 weeks of pay)"
+                (if (plan.basisIsEstimate) "Based on about ${Money.format(plan.basisIncomeCents)}/month (from " +
+                    BudgetMath.incomeHistoryDays(incomes, asOf).let { d -> if (d >= 28) "your last 4 weeks of pay)" else "your first $d days of pay)" }
                 else "Based on ${Money.format(plan.basisIncomeCents)}/month") +
                     ", minus ${settings.taxPercent}% for taxes (${Money.format(plan.taxCents)}).",
                 style = MaterialTheme.typography.bodySmall,

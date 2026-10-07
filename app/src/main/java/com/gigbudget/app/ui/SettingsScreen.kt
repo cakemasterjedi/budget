@@ -53,7 +53,12 @@ import com.gigbudget.app.autoimport.ScoutNotifier
 import com.gigbudget.app.data.Categories
 import com.gigbudget.app.data.Dates
 import com.gigbudget.app.data.Money
+import androidx.compose.ui.text.font.FontWeight
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import com.gigbudget.app.data.Outcomes
 import com.gigbudget.app.data.Roles
 import com.gigbudget.app.data.WatchedApp
@@ -196,6 +201,62 @@ fun SettingsScreen(vm: BudgetViewModel, modifier: Modifier) {
         }
 
         item {
+            val driveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+                if (uri != null) vm.connectAutoBackup(uri) { result ->
+                    Toast.makeText(
+                        context,
+                        if (result.isSuccess) "Google Drive backup is on 💜" else (result.exceptionOrNull()?.message ?: "Couldn't connect"),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+            SectionCard("Google Drive backup", emoji = "☁️") {
+                if (settings.autoBackupUri.isEmpty()) {
+                    Text(
+                        "Back up to Google Drive automatically, every day. Tap Connect, choose Google Drive " +
+                            "(tap ☰ in the corner if you don't see it), pick a folder and tap Save. That's it.",
+                    )
+                    Button(onClick = { driveLauncher.launch("StackIt-auto-backup.json") }) { Text("Connect Google Drive") }
+                    Text(
+                        "Stack It can only see that one file — nothing else in your Drive.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Text("✅ Backing up to ${settings.autoBackupName}", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        if (settings.lastAutoBackupAt == 0L) "No backup yet."
+                        else "Last backup: ${Dates.formatLong(settings.lastAutoBackupAt)} at " +
+                            DateTimeFormatter.ofPattern("h:mm a", Locale.US).format(
+                                Instant.ofEpochMilli(settings.lastAutoBackupAt).atZone(ZoneId.systemDefault())
+                            ),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    if (settings.autoBackupError.isNotEmpty()) {
+                        Text(settings.autoBackupError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Text(
+                        "Updates every day, and when you leave the app if it's been 6+ hours.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = {
+                            vm.autoBackupNow { result ->
+                                Toast.makeText(context, if (result.isSuccess) "Backed up to Google Drive 💜" else "Backup failed — try reconnecting", Toast.LENGTH_LONG).show()
+                            }
+                        }) { Text("Back up now") }
+                        OutlinedButton(onClick = { restoreUri = Uri.parse(settings.autoBackupUri) }) { Text("Restore") }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { driveLauncher.launch("StackIt-auto-backup.json") }) { Text("Reconnect") }
+                        TextButton(onClick = { vm.disconnectAutoBackup() }) { Text("Turn off") }
+                    }
+                }
+            }
+        }
+
+        item {
             val backupName = "StackIt-backup-${LocalDate.now()}.json"
             val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
                 if (uri != null) vm.exportTo(uri) { result ->
@@ -205,10 +266,9 @@ fun SettingsScreen(vm: BudgetViewModel, modifier: Modifier) {
             val openLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                 if (uri != null) restoreUri = uri
             }
-            SectionCard("Back up & restore", emoji = "💾") {
+            SectionCard("Backup file", emoji = "💾") {
                 Text(
-                    "Save a file with everything — income, spending, goals, debts, bills, categories and settings. " +
-                        "Keep it in Google Drive or Downloads. If you ever have to reinstall or get a new phone, restore it here.",
+                    "Save an extra copy anywhere you like, or restore one from a file — after a reinstall or on a new phone.",
                 )
                 Text(
                     if (settings.lastBackupAt == 0L) "No backup yet." else "Last backup: ${Dates.formatLong(settings.lastBackupAt)}",

@@ -4,6 +4,7 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.gigbudget.app.data.AutoBackup
 import com.gigbudget.app.data.Backup
 import com.gigbudget.app.data.Bill
 import com.gigbudget.app.data.CategoryRules
@@ -180,6 +181,14 @@ class BudgetViewModel(app: Application) : AndroidViewModel(app) {
         }
         onDone(result)
     }
+
+    fun connectAutoBackup(uri: Uri, onDone: (Result<Unit>) -> Unit) = viewModelScope.launch {
+        onDone(AutoBackup.connect(budgetApp, uri))
+    }
+
+    fun autoBackupNow(onDone: (Result<Unit>) -> Unit) = viewModelScope.launch { onDone(AutoBackup.run(budgetApp)) }
+
+    fun disconnectAutoBackup() = AutoBackup.disconnect(budgetApp)
 
     /** Replaces everything with the backup at [uri]. Leaves current data alone if the file is bad. */
     fun restoreFrom(uri: Uri, onDone: (Result<Unit>) -> Unit) = viewModelScope.launch {

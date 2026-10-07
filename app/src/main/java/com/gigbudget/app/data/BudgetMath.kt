@@ -227,14 +227,28 @@ object BudgetMath {
         )
     }
 
-    /** Average weekly income over the last 4 weeks. */
+    /**
+     * Average weekly income. Uses the last 4 weeks once there are 4 weeks of pay history; before
+     * that, averages over the days since the first logged pay (counting at least one full week),
+     * so a new user's estimate isn't dragged down by weeks before they started.
+     */
     fun averageWeeklyIncome(incomes: List<Income>, today: LocalDate = LocalDate.now()): Long {
+        val days = incomeHistoryDays(incomes, today)
+        if (days == 0) return 0
         val start = Dates.startOf(today.minusDays(27))
         val end = Dates.startOf(today.plusDays(1))
-        return incomes.filter { it.date in start until end }.sumOf { it.amountCents } / 4
+        val total = incomes.filter { it.date in start until end }.sumOf { it.amountCents }
+        return total * 7 / maxOf(days, 7)
     }
 
-    /** 4-week average scaled to a month (52 weeks / 12 months). */
+    /** Days of pay history the average covers: from the first logged pay to today, capped at 28 (0 = no pay yet). */
+    fun incomeHistoryDays(incomes: List<Income>, today: LocalDate = LocalDate.now()): Int {
+        val first = incomes.minOfOrNull { it.date } ?: return 0
+        val days = ChronoUnit.DAYS.between(Dates.toLocalDate(first), today) + 1
+        return days.coerceIn(1, 28).toInt()
+    }
+
+    /** Average week scaled to a month (52 weeks / 12 months). */
     fun estimatedMonthlyIncome(incomes: List<Income>, today: LocalDate = LocalDate.now()): Long =
         averageWeeklyIncome(incomes, today) * 52 / 12
 

@@ -30,11 +30,20 @@ data class Settings(
     val carryOver: Boolean = true,
     /** Renamed buckets, custom / moved / hidden categories. */
     val categoryRules: CategoryRules = CategoryRules(),
-    /** When the last backup file was saved (0 = never). */
+    /** When the last backup file was saved by hand (0 = never). */
     val lastBackupAt: Long = 0,
+    /** The Google Drive (or other) file that automatic backups overwrite; empty = not connected. */
+    val autoBackupUri: String = "",
+    val autoBackupName: String = "",
+    val lastAutoBackupAt: Long = 0,
+    /** Why the last automatic backup failed, or empty. */
+    val autoBackupError: String = "",
 )
 
 private const val BUDGET_PREFIX = "cb_"
+
+/** Settings tied to this phone (its permission to the Drive file), left out of backup files. */
+private val DEVICE_ONLY_KEYS = setOf("autoBackupUri", "autoBackupName", "lastAutoBackupAt", "autoBackupError")
 
 class SettingsStore(context: Context) {
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
@@ -56,6 +65,10 @@ class SettingsStore(context: Context) {
             .putBoolean("carryOver", next.carryOver)
             .putString("categoryRules", next.categoryRules.toJson())
             .putLong("lastBackupAt", next.lastBackupAt)
+            .putString("autoBackupUri", next.autoBackupUri)
+            .putString("autoBackupName", next.autoBackupName)
+            .putLong("lastAutoBackupAt", next.lastAutoBackupAt)
+            .putString("autoBackupError", next.autoBackupError)
             .also { editor ->
                 next.bucketPercents.forEach { (bucket, pct) -> editor.putInt("pct_${bucket.name}", pct) }
                 // Category budgets live under "cb_<category>"; rewrite them all so removed ones disappear.
@@ -77,6 +90,7 @@ class SettingsStore(context: Context) {
     /** Every saved preference, tagged with its type, for the backup file. */
     fun exportJson(): JSONObject = JSONObject().also { out ->
         prefs.all.forEach { (key, value) ->
+            if (key in DEVICE_ONLY_KEYS) return@forEach
             val (type, v) = when (value) {
                 is Boolean -> "boolean" to value
                 is Int -> "int" to value
@@ -92,8 +106,17 @@ class SettingsStore(context: Context) {
 
     /** Replaces all preferences with the ones from a backup file, then reloads. */
     fun importJson(json: JSONObject) {
+        // The Drive connection belongs to this phone, so restoring a backup keeps it as it is.
+        val keep = prefs.all.filterKeys { it in DEVICE_ONLY_KEYS }
         val editor = prefs.edit().clear()
+        keep.forEach { (k, v) ->
+            when (v) {
+                is String -> editor.putString(k, v)
+                is Long -> editor.putLong(k, v)
+            }
+        }
         json.keys().forEach { key ->
+            if (key in DEVICE_ONLY_KEYS) return@forEach
             val entry = json.getJSONObject(key)
             when (entry.getString("type")) {
                 "boolean" -> editor.putBoolean(key, entry.getBoolean("value"))
@@ -124,5 +147,9 @@ class SettingsStore(context: Context) {
         carryOver = prefs.getBoolean("carryOver", true),
         categoryRules = runCatching { CategoryRules.fromJson(prefs.getString("categoryRules", null)) }.getOrDefault(CategoryRules()),
         lastBackupAt = prefs.getLong("lastBackupAt", 0),
+        autoBackupUri = prefs.getString("autoBackupUri", "").orEmpty(),
+        autoBackupName = prefs.getString("autoBackupName", "").orEmpty(),
+        lastAutoBackupAt = prefs.getLong("lastAutoBackupAt", 0),
+        autoBackupError = prefs.getString("autoBackupError", "").orEmpty(),
     )
 }

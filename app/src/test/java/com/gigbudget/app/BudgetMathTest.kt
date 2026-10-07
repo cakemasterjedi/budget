@@ -236,4 +236,29 @@ class BudgetMathTest {
         val split = BudgetMath.splitPaycheck(50_000, Settings(taxPercent = 20), goals, 0, today)
         assertEquals(split.bucket(Bucket.SAVINGS), split.goalShares.sumOf { it.second })
     }
+
+    @Test fun newUserAverageCountsOnlyTheirFirstDays() {
+        // First pay 2 days ago: 3 days of history, but at least a full week is counted.
+        val firstWeek = listOf(
+            Income(source = IncomeSources.DOORDASH, amountCents = 40_000, date = at(today.minusDays(2))),
+            Income(source = IncomeSources.DOORDASH, amountCents = 20_000, date = at(today)),
+        )
+        assertEquals(3, BudgetMath.incomeHistoryDays(firstWeek, today))
+        assertEquals(60_000L, BudgetMath.averageWeeklyIncome(firstWeek, today))      // not $150
+        assertEquals(260_000L, BudgetMath.estimatedMonthlyIncome(firstWeek, today))  // $600 × 52 / 12
+
+        // Two weeks in (15 days): $1,500 over 15 days = $700 a week.
+        val twoWeeks = listOf(Income(source = IncomeSources.SPARK, amountCents = 150_000, date = at(today.minusDays(14))))
+        assertEquals(70_000L, BudgetMath.averageWeeklyIncome(twoWeeks, today))
+    }
+
+    @Test fun afterFourWeeksTheAverageUsesTheLastFourWeeks() {
+        val incomes = listOf(
+            Income(source = IncomeSources.SPARK, amountCents = 999_999, date = at(today.minusDays(40))), // too old to count
+            Income(source = IncomeSources.SPARK, amountCents = 200_000, date = at(today.minusDays(10))),
+        )
+        assertEquals(28, BudgetMath.incomeHistoryDays(incomes, today))
+        assertEquals(50_000L, BudgetMath.averageWeeklyIncome(incomes, today))
+        assertEquals(0L, BudgetMath.averageWeeklyIncome(emptyList(), today))
+    }
 }

@@ -152,13 +152,14 @@ fun DashboardScreen(
 
         SavingsScoutCard(vm, onNeedGoal = onOpenGoals)
 
-        val needsBackup = settings.lastBackupAt == 0L || now - settings.lastBackupAt > 30L * 24 * 60 * 60 * 1000
+        val lastBackup = maxOf(settings.lastBackupAt, settings.lastAutoBackupAt)
+        val needsBackup = lastBackup == 0L || now - lastBackup > 30L * 24 * 60 * 60 * 1000
         if (needsBackup && (incomes.size + expenses.size) >= 5) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("💾 Keep your data safe", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        if (settings.lastBackupAt == 0L) "Save a backup file so you never lose your budget, even on a new phone."
+                        if (lastBackup == 0L) "Turn on Google Drive backup in Settings so you never lose your budget, even on a new phone."
                         else "It's been a while since your last backup. Save a fresh one?",
                     )
                     Button(onClick = onOpenSettings) { Text("Back up now") }

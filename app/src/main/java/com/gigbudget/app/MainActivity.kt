@@ -38,7 +38,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gigbudget.app.data.AutoBackup
 import com.gigbudget.app.ui.DashboardScreen
+import kotlinx.coroutines.launch
 import com.gigbudget.app.ui.GoalsScreen
 import com.gigbudget.app.ui.MilestoneDialog
 import com.gigbudget.app.ui.MoneyScreen
@@ -62,6 +64,13 @@ class MainActivity : ComponentActivity() {
                 MainScreen(requestedTab.value, onTabHandled = { requestedTab.value = null })
             }
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Leaving the app: refresh the Google Drive backup if it's more than 6 hours old.
+        val app = application as BudgetApp
+        app.appScope.launch { AutoBackup.runIfStale(app) }
     }
 
     override fun onNewIntent(intent: Intent) {
