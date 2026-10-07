@@ -84,7 +84,7 @@ Spark and bank apps have their own notifications (and purchase alerts) turned on
 - Each watched app is set to one of: **DoorDash pay**, **Spark pay**, **Money in & out** (purchases
   are spending, deposits and money sent to you are income), **Spending only**, or **Off**.
 - DasherDirect, Cash App, Chime, PayPal, Venmo, Google Wallet, Chase, Capital One, Wells Fargo,
-  Bank of America, USAA and Varo are pre-set to Money in & out. Any other app that sends a money notification shows up
+  Bank of America, USAA, Varo and OnePay are pre-set to Money in & out. Any other app that sends a money notification shows up
   in Settings automatically — switch it on there.
 - If your bank texts you instead, turn on "Messages (bank texts)".
 - Imported entries are marked **auto**; tap one to fix the amount or category.
