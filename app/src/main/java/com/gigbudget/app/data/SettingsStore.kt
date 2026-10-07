@@ -1,6 +1,8 @@
 package com.gigbudget.app.data
 
 import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,11 +28,17 @@ data class Settings(
     val categoryBudgets: Map<String, Long> = emptyMap(),
     /** Carry what's left over (or overspent) into the next month. */
     val carryOver: Boolean = true,
+    /** Renamed buckets, custom / moved / hidden categories. */
+    val categoryRules: CategoryRules = CategoryRules(),
+    /** When the last backup file was saved (0 = never). */
+    val lastBackupAt: Long = 0,
 )
+
+private const val BUDGET_PREFIX = "cb_"
 
 class SettingsStore(context: Context) {
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-    private val _state = MutableStateFlow(load())
+    private val _state = MutableStateFlow(load().also { CategoryRules.current = it.categoryRules })
     val state: StateFlow<Settings> = _state.asStateFlow()
 
     fun update(transform: (Settings) -> Settings) {
@@ -46,15 +54,58 @@ class SettingsStore(context: Context) {
             .putBoolean("scoutAlerts", next.scoutAlerts)
             .putLong("lastScoutAlertAt", next.lastScoutAlertAt)
             .putBoolean("carryOver", next.carryOver)
+            .putString("categoryRules", next.categoryRules.toJson())
+            .putLong("lastBackupAt", next.lastBackupAt)
             .also { editor ->
                 next.bucketPercents.forEach { (bucket, pct) -> editor.putInt("pct_${bucket.name}", pct) }
-                Categories.all.forEach { category ->
-                    val budget = next.categoryBudgets[category]
-                    if (budget != null && budget > 0) editor.putLong("cb_$category", budget) else editor.remove("cb_$category")
-                }
+                // Category budgets live under "cb_<category>"; rewrite them all so removed ones disappear.
+                prefs.all.keys.filter { it.startsWith(BUDGET_PREFIX) }.forEach { editor.remove(it) }
+                next.categoryBudgets.filterValues { it > 0 }.forEach { (category, budget) -> editor.putLong(BUDGET_PREFIX + category, budget) }
             }
             .apply()
+        CategoryRules.current = next.categoryRules
         _state.value = next
+    }
+
+    /** Re-reads everything from disk (after a restore). */
+    fun reload() {
+        val loaded = load()
+        CategoryRules.current = loaded.categoryRules
+        _state.value = loaded
+    }
+
+    /** Every saved preference, tagged with its type, for the backup file. */
+    fun exportJson(): JSONObject = JSONObject().also { out ->
+        prefs.all.forEach { (key, value) ->
+            val (type, v) = when (value) {
+                is Boolean -> "boolean" to value
+                is Int -> "int" to value
+                is Long -> "long" to value
+                is Float -> "float" to value.toDouble()
+                is String -> "string" to value
+                is Set<*> -> "stringSet" to JSONArray(value.map { it.toString() })
+                else -> return@forEach
+            }
+            out.put(key, JSONObject().put("type", type).put("value", v))
+        }
+    }
+
+    /** Replaces all preferences with the ones from a backup file, then reloads. */
+    fun importJson(json: JSONObject) {
+        val editor = prefs.edit().clear()
+        json.keys().forEach { key ->
+            val entry = json.getJSONObject(key)
+            when (entry.getString("type")) {
+                "boolean" -> editor.putBoolean(key, entry.getBoolean("value"))
+                "int" -> editor.putInt(key, entry.getInt("value"))
+                "long" -> editor.putLong(key, entry.getLong("value"))
+                "float" -> editor.putFloat(key, entry.getDouble("value").toFloat())
+                "string" -> editor.putString(key, entry.getString("value"))
+                "stringSet" -> editor.putStringSet(key, entry.getJSONArray("value").let { a -> List(a.length()) { a.getString(it) }.toSet() })
+            }
+        }
+        editor.commit()
+        reload()
     }
 
     private fun load() = Settings(
@@ -68,7 +119,10 @@ class SettingsStore(context: Context) {
         notes = prefs.getString("notes", "").orEmpty(),
         scoutAlerts = prefs.getBoolean("scoutAlerts", true),
         lastScoutAlertAt = prefs.getLong("lastScoutAlertAt", 0),
-        categoryBudgets = Categories.all.mapNotNull { c -> prefs.getLong("cb_$c", 0).takeIf { it > 0 }?.let { c to it } }.toMap(),
+        categoryBudgets = prefs.all.filterKeys { it.startsWith(BUDGET_PREFIX) }
+            .mapNotNull { (k, v) -> (v as? Long)?.takeIf { it > 0 }?.let { k.removePrefix(BUDGET_PREFIX) to it } }.toMap(),
         carryOver = prefs.getBoolean("carryOver", true),
+        categoryRules = runCatching { CategoryRules.fromJson(prefs.getString("categoryRules", null)) }.getOrDefault(CategoryRules()),
+        lastBackupAt = prefs.getLong("lastBackupAt", 0),
     )
 }

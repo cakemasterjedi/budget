@@ -13,15 +13,34 @@ android {
         applicationId = "com.gigbudget.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
+    }
+
+    // Builds are signed with a key kept outside git (app/signing/stackit.keystore, gitignored) so
+    // each new APK installs as an update over the old one; Android refuses an update signed with a
+    // different key, and uninstalling wipes the app's data. Without that file, the machine's
+    // default debug key is used. The in-app Backup & Restore protects data either way.
+    val stackitKeystore = file("signing/stackit.keystore")
+    signingConfigs {
+        if (stackitKeystore.exists()) {
+            create("stackit") {
+                storeFile = stackitKeystore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
     }
 
     buildTypes {
+        val signing = signingConfigs.findByName("stackit") ?: signingConfigs.getByName("debug")
+        debug {
+            signingConfig = signing
+        }
         release {
             isMinifyEnabled = false
-            // Signed with the debug key so the APK can be sideloaded without extra setup.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signing
         }
     }
     compileOptions {

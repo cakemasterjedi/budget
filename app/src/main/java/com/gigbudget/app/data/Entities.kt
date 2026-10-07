@@ -33,10 +33,27 @@ object Categories {
     /** Money moved into a savings goal (created from the Goals tab). */
     const val SAVINGS = "Savings"
     const val OTHER = "Other"
-    val all = listOf(BOTTLE, PREROLL, GAS, FOOD, GROCERIES, CAR, RENT, BILLS, PHONE, HEALTH, FUN, SHOPPING,
+    val builtIn = listOf(BOTTLE, PREROLL, GAS, FOOD, GROCERIES, CAR, RENT, BILLS, PHONE, HEALTH, FUN, SHOPPING,
         SUBSCRIPTIONS, GIVING, DEBT, SAVINGS, OTHER)
-    /** Categories offered when adding spending by hand (savings go through the Goals tab). */
-    val pickable = all - SAVINGS
+
+    /** Savings and Debt drive goals and the debt tracker, so they always stay in their own bucket. */
+    val locked = setOf(SAVINGS, DEBT)
+
+    private val defaultEmojis = mapOf(
+        BOTTLE to "🍾", PREROLL to "🌿", GAS to "⛽", FOOD to "🍔", GROCERIES to "🛒", CAR to "🚗", RENT to "🏠",
+        BILLS to "💡", PHONE to "📱", HEALTH to "💊", FUN to "🎉", SHOPPING to "🛍️", SUBSCRIPTIONS to "📺",
+        GIVING to "💝", DEBT to "💳", SAVINGS to "🐷", OTHER to "🏷️",
+    )
+
+    /** Built-in categories plus the ones Niome added. Stored keys never change; names are display-only. */
+    val all: List<String> get() = builtIn + CategoryRules.current.customCategories
+
+    /** Categories offered when adding spending by hand (savings go through the Goals tab; hidden ones are left out). */
+    val pickable: List<String> get() = all.filter { it != SAVINGS && it !in CategoryRules.current.hidden }
+
+    fun label(key: String): String = CategoryRules.current.categoryLabels[key]?.takeIf { it.isNotBlank() } ?: key
+    fun emoji(key: String): String = CategoryRules.current.categoryEmojis[key]?.takeIf { it.isNotBlank() } ?: defaultEmojis[key] ?: "🏷️"
+    fun display(key: String): String = "${emoji(key)} ${label(key)}"
 }
 
 /**
@@ -59,15 +76,23 @@ enum class SplitPreset(val label: String, val description: String, val percents:
     ),
 }
 
-enum class Bucket(val label: String, val emoji: String, val defaultPercent: Int) {
+enum class Bucket(val defaultLabel: String, val defaultEmoji: String, val defaultPercent: Int) {
     NEEDS("Bills & needs", "🏠", 50),
     WANTS("Wants", "🛍️", 25),
     GIVING("Giving", "💝", 5),
     SAVINGS("Savings", "🐷", 15),
     DEBT("Debt", "💳", 5);
 
+    /** Name shown in the app; Niome can rename each bucket. */
+    val label: String get() = CategoryRules.current.bucketNames[this]?.takeIf { it.isNotBlank() } ?: defaultLabel
+    val emoji: String get() = CategoryRules.current.bucketEmojis[this]?.takeIf { it.isNotBlank() } ?: defaultEmoji
+
     companion object {
-        fun of(category: String): Bucket = when (category) {
+        fun of(category: String): Bucket =
+            if (category in Categories.locked) defaultOf(category)
+            else CategoryRules.current.categoryBuckets[category] ?: defaultOf(category)
+
+        fun defaultOf(category: String): Bucket = when (category) {
             Categories.RENT, Categories.BILLS, Categories.PHONE, Categories.GROCERIES, Categories.GAS,
             Categories.CAR, Categories.HEALTH -> NEEDS
             Categories.GIVING -> GIVING

@@ -7,4 +7,11 @@ import com.gigbudget.app.data.SettingsStore
 class BudgetApp : Application() {
     val db: AppDatabase by lazy { AppDatabase.build(this) }
     val settings: SettingsStore by lazy { SettingsStore(this) }
+
+    override fun onCreate() {
+        super.onCreate()
+        // Load settings right away so custom categories are in effect everywhere, including the
+        // notification listener, before any screen asks.
+        settings
+    }
 }

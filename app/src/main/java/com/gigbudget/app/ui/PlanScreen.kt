@@ -72,6 +72,7 @@ fun PlanScreen(vm: BudgetViewModel, modifier: Modifier) {
     var editingBill by remember { mutableStateOf<Bill?>(null) }
     var payingBill by remember { mutableStateOf<Bill?>(null) }
     var editingBudget by remember { mutableStateOf<String?>(null) }
+    var editingCategories by remember { mutableStateOf(false) }
     var monthsBack by rememberSaveable { mutableIntStateOf(0) }
 
     val thisMonth = YearMonth.now()
@@ -119,6 +120,7 @@ fun PlanScreen(vm: BudgetViewModel, modifier: Modifier) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             TextButton(onClick = { editingIncome = true }) { Text("Set what I expect to make") }
+            TextButton(onClick = { editingCategories = true }) { Text("✏️ Rename or change categories") }
 
             if (adjusting) {
                 HorizontalDivider()
@@ -186,8 +188,9 @@ fun PlanScreen(vm: BudgetViewModel, modifier: Modifier) {
                 }
             }
             Text(
-                "Bills & needs: rent, bills, phone, groceries, gas, car, health. Wants: eating out, fun, shopping, " +
-                    "subscriptions, bottles, prerolls. Savings come from the Goals tab; debt payments from the debt tracker.",
+                listOf(Bucket.NEEDS, Bucket.WANTS, Bucket.GIVING).joinToString(" ") { b ->
+                    "${b.label}: " + Bucket.categoriesIn(b).joinToString { Categories.label(it).lowercase() } + "."
+                } + " Savings come from the Goals tab; debt payments from the debt tracker.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -204,7 +207,7 @@ fun PlanScreen(vm: BudgetViewModel, modifier: Modifier) {
             budgets.forEach { b ->
                 Column(Modifier.clickable { editingBudget = b.category }, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(b.category, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text(Categories.display(b.category), fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                         Text("${Money.format(b.spentCents)} of ${Money.format(b.budgetCents)}")
                     }
                     BudgetBar(b.spentCents, b.budgetCents, bucketColor(Bucket.of(b.category)))
@@ -266,6 +269,7 @@ fun PlanScreen(vm: BudgetViewModel, modifier: Modifier) {
         }
     }
 
+    if (editingCategories) CategoryEditorDialog(vm, onDismiss = { editingCategories = false })
     editingBudget?.let { category ->
         CategoryBudgetDialog(
             initialCategory = category,
@@ -386,7 +390,7 @@ private fun BillDialog(initial: Bill, onDismiss: () -> Unit, onSave: (Bill) -> U
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.width(220.dp),
                 )
-                ChoiceChips(Bucket.categoriesIn(Bucket.NEEDS) + Categories.SUBSCRIPTIONS + Categories.DEBT, category, { category = it })
+                ChoiceChips((Bucket.categoriesIn(Bucket.NEEDS) + Categories.SUBSCRIPTIONS + Categories.DEBT).distinct(), category, { category = it }) { Categories.display(it) }
             }
         },
         confirmButton = {
@@ -413,7 +417,7 @@ private fun CategoryBudgetDialog(
     var amount by remember { mutableStateOf(Money.toInput(budgets[category] ?: 0)) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (isNew) "New spending budget" else "$category budget") },
+        title = { Text(if (isNew) "New spending budget" else "${Categories.label(category)} budget") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
                 if (isNew) {
@@ -421,7 +425,7 @@ private fun CategoryBudgetDialog(
                         Categories.pickable - setOf(Categories.DEBT, Categories.RENT),
                         category,
                         { category = it; amount = Money.toInput(budgets[it] ?: 0) },
-                    )
+                    ) { Categories.display(it) }
                 }
                 MoneyField(amount, { amount = it }, "Monthly budget")
             }

@@ -32,7 +32,18 @@ Pink & purple design, five tabs:
   payments still due, and your everyday spending pace, then suggests a safe $5–$50 to save today.
   Tap "How?" to see the math. With auto-import on, you get a heads-up notification after a payout
   (at most every 3 hours). Inspired by Huntington's Money Scout and Savings Goal Getter.
-- **Settings** – auto-import setup, which apps to watch, tax %, and weekly bottle/preroll limits.
+- **Settings** – auto-import setup, which apps to watch, tax %, weekly bottle/preroll limits,
+  **✏️ Edit categories** (rename the five parts of the plan, change emojis, move or hide categories,
+  add your own like Nails or Hair) and **💾 Back up & restore** (save everything to a file, restore it
+  after a reinstall or on a new phone).
+
+## Keeping data safe across updates
+
+- Install each new APK *over* the old one; don't uninstall first. Data and settings stay.
+- Android only accepts an update signed with the same key as the installed app. Builds use the key
+  in `app/signing/stackit.keystore`, which is kept out of git; put the same file there on any
+  machine that builds releases, or updates will be refused.
+- Save a backup file from Settings now and then. It works no matter how the app was installed.
 
 Categories and buckets: **Bills & needs** = Rent, Bills, Phone, Groceries, Gas, Car, Health ·
 **Wants** = Food (eating out), Fun, Shopping, Subscriptions, Bottle, Preroll, Other ·

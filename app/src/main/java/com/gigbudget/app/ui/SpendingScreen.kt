@@ -63,15 +63,15 @@ fun SpendingScreen(vm: BudgetViewModel, modifier: Modifier) {
                         FilledTonalButton(
                             onClick = { editing = newExpense(Categories.BOTTLE, settings.lastBottlePriceCents) },
                             modifier = Modifier.weight(1f),
-                        ) { Text("🍾 Bottle") }
+                        ) { Text(Categories.display(Categories.BOTTLE)) }
                         FilledTonalButton(
                             onClick = { editing = newExpense(Categories.PREROLL, settings.lastPrerollPriceCents) },
                             modifier = Modifier.weight(1f),
-                        ) { Text("🌿 Preroll") }
+                        ) { Text(Categories.display(Categories.PREROLL)) }
                     }
                     Text(
-                        "This week: ${week.bottleCount} bottles (${Money.format(week.bottleTotal)}), " +
-                            "${week.prerollCount} prerolls (${Money.format(week.prerollTotal)})",
+                        "This week: ${week.bottleCount} × ${Categories.label(Categories.BOTTLE)} (${Money.format(week.bottleTotal)}), " +
+                            "${week.prerollCount} × ${Categories.label(Categories.PREROLL)} (${Money.format(week.prerollTotal)})",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     AmountRow("All spending this week", week.spendingTotal, color = MoneyOutColor, bold = true)
@@ -87,7 +87,7 @@ fun SpendingScreen(vm: BudgetViewModel, modifier: Modifier) {
                             color = if (expense.category == Categories.SAVINGS) MaterialTheme.colorScheme.onSurface else MoneyOutColor,
                         )
                     },
-                    overlineContent = { Text(expense.category) },
+                    overlineContent = { Text(Categories.display(expense.category)) },
                     supportingContent = {
                         Text(
                             listOf(Dates.formatShort(expense.date), expense.note, expense.sourceApp)
@@ -140,7 +140,7 @@ internal fun ExpenseDialog(initial: Expense, onDismiss: () -> Unit, onSave: (Exp
                         style = MaterialTheme.typography.bodySmall,
                     )
                 } else {
-                    ChoiceChips(Categories.pickable, category, { category = it })
+                    ChoiceChips(Categories.pickable, category, { category = it }) { Categories.display(it) }
                 }
                 DateButton("Date", date, { if (it != null) date = it })
                 OutlinedTextField(note, { note = it }, label = { Text("Where / note (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())

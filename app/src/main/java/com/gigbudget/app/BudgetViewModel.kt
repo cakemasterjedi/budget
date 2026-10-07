@@ -1,9 +1,12 @@
 package com.gigbudget.app
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.gigbudget.app.data.Backup
 import com.gigbudget.app.data.Bill
+import com.gigbudget.app.data.CategoryRules
 import com.gigbudget.app.data.BudgetMath
 import com.gigbudget.app.data.Categories
 import com.gigbudget.app.data.Debt
@@ -14,6 +17,7 @@ import com.gigbudget.app.data.NotificationLog
 import com.gigbudget.app.data.SavingsGoal
 import com.gigbudget.app.data.Settings
 import com.gigbudget.app.data.WatchedApp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,6 +25,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class BudgetViewModel(app: Application) : AndroidViewModel(app) {
     private val budgetApp = app as BudgetApp
@@ -140,6 +145,53 @@ class BudgetViewModel(app: Application) : AndroidViewModel(app) {
     fun clearNotificationLog() = viewModelScope.launch { db.notificationLogDao().clear() }
 
     fun updateSettings(transform: (Settings) -> Settings) = budgetApp.settings.update(transform)
+
+    fun updateCategoryRules(transform: (CategoryRules) -> CategoryRules) =
+        updateSettings { it.copy(categoryRules = transform(it.categoryRules)) }
+
+    /** Deletes a category Niome added; anything filed under it moves to Other. */
+    fun deleteCustomCategory(key: String) = viewModelScope.launch {
+        db.expenseDao().recategorize(key, Categories.OTHER)
+        db.billDao().recategorize(key, Categories.OTHER)
+        updateSettings { s ->
+            val r = s.categoryRules
+            s.copy(
+                categoryRules = r.copy(
+                    customCategories = r.customCategories - key,
+                    categoryBuckets = r.categoryBuckets - key,
+                    categoryLabels = r.categoryLabels - key,
+                    categoryEmojis = r.categoryEmojis - key,
+                    hidden = r.hidden - key,
+                ),
+                categoryBudgets = s.categoryBudgets - key,
+            )
+        }
+    }
+
+    /** Writes a backup file to [uri] (picked by the user). Calls [onDone] on the main thread. */
+    fun exportTo(uri: Uri, onDone: (Result<Unit>) -> Unit) = viewModelScope.launch {
+        val result = runCatching {
+            withContext(Dispatchers.IO) {
+                val json = Backup.export(db, budgetApp.settings)
+                val out = budgetApp.contentResolver.openOutputStream(uri, "wt") ?: error("Couldn't open that file")
+                out.use { it.write(json.toByteArray()) }
+            }
+            updateSettings { it.copy(lastBackupAt = System.currentTimeMillis()) }
+        }
+        onDone(result)
+    }
+
+    /** Replaces everything with the backup at [uri]. Leaves current data alone if the file is bad. */
+    fun restoreFrom(uri: Uri, onDone: (Result<Unit>) -> Unit) = viewModelScope.launch {
+        val result = runCatching {
+            withContext(Dispatchers.IO) {
+                val json = budgetApp.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
+                    ?: error("Couldn't open that file")
+                Backup.restore(db, budgetApp.settings, json)
+            }
+        }
+        onDone(result)
+    }
 
     private fun <T> Flow<List<T>>.asState(): StateFlow<List<T>> =
         stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

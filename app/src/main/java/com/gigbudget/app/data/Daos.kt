@@ -10,6 +10,12 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface IncomeDao {
+    @Query("DELETE FROM income")
+    suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(items: List<Income>)
+
     @Query("SELECT * FROM income ORDER BY date DESC")
     suspend fun list(): List<Income>
 
@@ -36,6 +42,16 @@ interface IncomeDao {
 
 @Dao
 interface ExpenseDao {
+    @Query("DELETE FROM expenses")
+    suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(items: List<Expense>)
+
+    /** Moves everything in [from] to [to] (used when a custom category is deleted). */
+    @Query("UPDATE expenses SET category = :to WHERE category = :from")
+    suspend fun recategorize(from: String, to: String)
+
     @Query("SELECT * FROM expenses ORDER BY date DESC")
     suspend fun list(): List<Expense>
 
@@ -57,6 +73,15 @@ interface ExpenseDao {
 
 @Dao
 interface GoalDao {
+    @Query("SELECT * FROM goals")
+    suspend fun list(): List<SavingsGoal>
+
+    @Query("DELETE FROM goals")
+    suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(items: List<SavingsGoal>)
+
     @Query("SELECT * FROM goals ORDER BY CASE WHEN dueDate IS NULL THEN 1 ELSE 0 END, dueDate, name")
     fun all(): Flow<List<SavingsGoal>>
 
@@ -75,6 +100,15 @@ interface GoalDao {
 
 @Dao
 interface WatchedAppDao {
+    @Query("SELECT * FROM watched_apps")
+    suspend fun list(): List<WatchedApp>
+
+    @Query("DELETE FROM watched_apps")
+    suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(items: List<WatchedApp>)
+
     @Query("SELECT * FROM watched_apps ORDER BY CASE WHEN role = 'IGNORE' THEN 1 ELSE 0 END, lastSeen DESC, label")
     fun all(): Flow<List<WatchedApp>>
 
@@ -111,6 +145,12 @@ interface NotificationLogDao {
 
 @Dao
 interface DebtDao {
+    @Query("DELETE FROM debts")
+    suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(items: List<Debt>)
+
     @Query("SELECT * FROM debts ORDER BY name")
     suspend fun list(): List<Debt>
 
@@ -132,6 +172,16 @@ interface DebtDao {
 
 @Dao
 interface BillDao {
+    @Query("DELETE FROM bills")
+    suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(items: List<Bill>)
+
+    /** Moves everything in [from] to [to] (used when a custom category is deleted). */
+    @Query("UPDATE bills SET category = :to WHERE category = :from")
+    suspend fun recategorize(from: String, to: String)
+
     @Query("SELECT * FROM bills ORDER BY dueDay")
     suspend fun list(): List<Bill>
 

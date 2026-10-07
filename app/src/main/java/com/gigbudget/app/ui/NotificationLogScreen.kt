@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.gigbudget.app.BudgetViewModel
 import com.gigbudget.app.autoimport.NotificationParser
+import com.gigbudget.app.data.Categories
 import com.gigbudget.app.data.Dates
 import com.gigbudget.app.data.Expense
 import com.gigbudget.app.data.Income
@@ -114,7 +115,7 @@ fun NotificationLogScreen(vm: BudgetViewModel, onBack: () -> Unit) {
             onDismiss = { addingExpense = null },
             onSave = {
                 vm.saveExpense(it)
-                vm.markLogHandled(entry, Outcomes.EXPENSE, "Added by you: ${it.category} −${Money.format(it.amountCents)}")
+                vm.markLogHandled(entry, Outcomes.EXPENSE, "Added by you: ${Categories.label(it.category)} −${Money.format(it.amountCents)}")
                 addingExpense = null
             },
             onDelete = null,

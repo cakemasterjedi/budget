@@ -66,4 +66,20 @@ class MigrationTest {
             assertEquals("OTHER", it.getString(1))
         }
     }
+
+    /** Someone on the very first version updating straight to today's app keeps everything. */
+    @Test fun upgradeFromFirstVersionKeepsData() {
+        helper.createDatabase("first.db", 1).apply {
+            execSQL("INSERT INTO income (source, amountCents, date, note, auto) VALUES ('DoorDash', 4500, 1, 'first dash', 0)")
+            execSQL("INSERT INTO expenses (category, amountCents, date, note, auto, sourceApp) VALUES ('Preroll', 1500, 2, '', 0, '')")
+            execSQL("INSERT INTO goals (name, targetCents, savedCents) VALUES ('Tires', 60000, 1000)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate(
+            "first.db", 4, true, AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4,
+        )
+        db.query("SELECT note FROM income").use { it.moveToFirst(); assertEquals("first dash", it.getString(0)) }
+        db.query("SELECT category, amountCents FROM expenses").use { it.moveToFirst(); assertEquals("Preroll", it.getString(0)); assertEquals(1500L, it.getLong(1)) }
+        db.query("SELECT name, savedCents FROM goals").use { it.moveToFirst(); assertEquals("Tires", it.getString(0)); assertEquals(1000L, it.getLong(1)) }
+    }
 }

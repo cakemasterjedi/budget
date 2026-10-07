@@ -142,15 +142,29 @@ fun DashboardScreen(
             QuickButton("🧾", "Spend", Modifier.weight(1f)) {
                 addingExpense = Expense(category = Categories.OTHER, amountCents = 0, date = now)
             }
-            QuickButton("🍾", "Bottle", Modifier.weight(1f)) {
+            QuickButton(Categories.emoji(Categories.BOTTLE), Categories.label(Categories.BOTTLE), Modifier.weight(1f)) {
                 addingExpense = Expense(category = Categories.BOTTLE, amountCents = settings.lastBottlePriceCents, date = now)
             }
-            QuickButton("🌿", "Preroll", Modifier.weight(1f)) {
+            QuickButton(Categories.emoji(Categories.PREROLL), Categories.label(Categories.PREROLL), Modifier.weight(1f)) {
                 addingExpense = Expense(category = Categories.PREROLL, amountCents = settings.lastPrerollPriceCents, date = now)
             }
         }
 
         SavingsScoutCard(vm, onNeedGoal = onOpenGoals)
+
+        val needsBackup = settings.lastBackupAt == 0L || now - settings.lastBackupAt > 30L * 24 * 60 * 60 * 1000
+        if (needsBackup && (incomes.size + expenses.size) >= 5) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("💾 Keep your data safe", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (settings.lastBackupAt == 0L) "Save a backup file so you never lose your budget, even on a new phone."
+                        else "It's been a while since your last backup. Save a fresh one?",
+                    )
+                    Button(onClick = onOpenSettings) { Text("Back up now") }
+                }
+            }
+        }
 
         if (!autoImportOn) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
@@ -188,7 +202,7 @@ fun DashboardScreen(
                         .entries.sortedByDescending { it.value }
                         .forEach { (category, cents) ->
                             Row(Modifier.fillMaxWidth().padding(start = 22.dp)) {
-                                Text(category, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                                Text(Categories.display(category), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                                 Text(Money.format(cents), style = MaterialTheme.typography.bodySmall)
                                 Text("${cents * 100 / outflow}%", style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(48.dp),
@@ -229,15 +243,15 @@ fun DashboardScreen(
             AmountRow("Total", summary.incomeTotal, bold = true)
         }
 
-        SectionCard("Bottles & prerolls", emoji = "🍾") {
+        SectionCard("${Categories.label(Categories.BOTTLE)} & ${Categories.label(Categories.PREROLL)}", emoji = Categories.emoji(Categories.BOTTLE)) {
             val weekRange = Dates.range(Period.WEEK)
             val week = BudgetMath.summarize(incomes, expenses, weekRange.first, weekRange.second)
-            AmountRow("🍾 Bottles (${summary.bottleCount})", summary.bottleTotal)
+            AmountRow("${Categories.display(Categories.BOTTLE)} (${summary.bottleCount})", summary.bottleTotal)
             if (settings.bottleWeeklyLimitCents > 0) {
                 ProgressLine(week.bottleTotal, settings.bottleWeeklyLimitCents, overIsBad = true)
                 LimitText(week.bottleTotal, settings.bottleWeeklyLimitCents)
             }
-            AmountRow("🌿 Prerolls (${summary.prerollCount})", summary.prerollTotal)
+            AmountRow("${Categories.display(Categories.PREROLL)} (${summary.prerollCount})", summary.prerollTotal)
             if (settings.prerollWeeklyLimitCents > 0) {
                 ProgressLine(week.prerollTotal, settings.prerollWeeklyLimitCents, overIsBad = true)
                 LimitText(week.prerollTotal, settings.prerollWeeklyLimitCents)

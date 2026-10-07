@@ -2,6 +2,8 @@ package com.gigbudget.app.ui
 
 import android.Manifest
 import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import android.os.Build
 import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -19,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -47,7 +50,10 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.gigbudget.app.BudgetViewModel
 import com.gigbudget.app.autoimport.MoneyNotificationListener
 import com.gigbudget.app.autoimport.ScoutNotifier
+import com.gigbudget.app.data.Categories
+import com.gigbudget.app.data.Dates
 import com.gigbudget.app.data.Money
+import java.time.LocalDate
 import com.gigbudget.app.data.Outcomes
 import com.gigbudget.app.data.Roles
 import com.gigbudget.app.data.WatchedApp
@@ -60,6 +66,8 @@ fun SettingsScreen(vm: BudgetViewModel, modifier: Modifier) {
         Box(modifier) { NotificationLogScreen(vm, onBack = { showLog = false }) }
         return
     }
+    var editingCategories by remember { mutableStateOf(false) }
+    var restoreUri by remember { mutableStateOf<Uri?>(null) }
     val apps by vm.watchedApps.collectAsState()
     val log by vm.notificationLog.collectAsState()
     val settings by vm.settings.collectAsState()
@@ -181,6 +189,39 @@ fun SettingsScreen(vm: BudgetViewModel, modifier: Modifier) {
         }
 
         item {
+            SectionCard("Categories", emoji = "✏️") {
+                Text("Rename the parts of your plan, change emojis, move or hide categories, or add your own.")
+                OutlinedButton(onClick = { editingCategories = true }) { Text("Edit categories") }
+            }
+        }
+
+        item {
+            val backupName = "StackIt-backup-${LocalDate.now()}.json"
+            val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+                if (uri != null) vm.exportTo(uri) { result ->
+                    Toast.makeText(context, if (result.isSuccess) "Backup saved 💜" else "Couldn't save: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+            val openLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                if (uri != null) restoreUri = uri
+            }
+            SectionCard("Back up & restore", emoji = "💾") {
+                Text(
+                    "Save a file with everything — income, spending, goals, debts, bills, categories and settings. " +
+                        "Keep it in Google Drive or Downloads. If you ever have to reinstall or get a new phone, restore it here.",
+                )
+                Text(
+                    if (settings.lastBackupAt == 0L) "No backup yet." else "Last backup: ${Dates.formatLong(settings.lastBackupAt)}",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Button(onClick = { saveLauncher.launch(backupName) }) { Text("Save a backup") }
+                OutlinedButton(onClick = { openLauncher.launch(arrayOf("application/json", "application/octet-stream", "text/plain", "*/*")) }) {
+                    Text("Restore from a backup")
+                }
+            }
+        }
+
+        item {
             SectionCard("Budget settings") {
                 OutlinedTextField(
                     value = tax,
@@ -199,8 +240,8 @@ fun SettingsScreen(vm: BudgetViewModel, modifier: Modifier) {
                     }
                     Switch(checked = settings.carryOver, onCheckedChange = { on -> vm.updateSettings { it.copy(carryOver = on) } })
                 }
-                MoneyField(bottleLimit, { bottleLimit = it }, "Weekly bottle limit (blank = none)")
-                MoneyField(prerollLimit, { prerollLimit = it }, "Weekly preroll limit (blank = none)")
+                MoneyField(bottleLimit, { bottleLimit = it }, "Weekly ${Categories.label(Categories.BOTTLE).lowercase()} limit (blank = none)")
+                MoneyField(prerollLimit, { prerollLimit = it }, "Weekly ${Categories.label(Categories.PREROLL).lowercase()} limit (blank = none)")
                 Button(onClick = {
                     vm.updateSettings {
                         it.copy(
@@ -212,6 +253,28 @@ fun SettingsScreen(vm: BudgetViewModel, modifier: Modifier) {
                 }) { Text("Save") }
             }
         }
+    }
+
+    if (editingCategories) CategoryEditorDialog(vm, onDismiss = { editingCategories = false })
+    restoreUri?.let { uri ->
+        AlertDialog(
+            onDismissRequest = { restoreUri = null },
+            title = { Text("Restore this backup?") },
+            text = { Text("Everything in the app now is replaced with what's in the backup file.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    restoreUri = null
+                    vm.restoreFrom(uri) { result ->
+                        Toast.makeText(
+                            context,
+                            if (result.isSuccess) "Backup restored 💜" else (result.exceptionOrNull()?.message ?: "Couldn't restore that file"),
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }) { Text("Restore") }
+            },
+            dismissButton = { TextButton(onClick = { restoreUri = null }) { Text("Cancel") } },
+        )
     }
 }
 
