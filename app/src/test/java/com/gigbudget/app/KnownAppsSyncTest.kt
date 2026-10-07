@@ -42,6 +42,19 @@ class KnownAppsSyncTest {
         assertEquals(KnownApps.VERSION, settings.state.value.knownAppsVersion)
     }
 
+    @Test fun installOnTheOnePayVersionGetsHuntington() = runBlocking {
+        settings.update { it.copy(knownAppsVersion = 2) }
+        KnownApps.sync(db, settings)
+        assertEquals(Roles.BANK, db.watchedAppDao().get("com.huntington.m")!!.role)
+        assertEquals(null, db.watchedAppDao().get(onePay)) // already handled by version 2, not re-added
+    }
+
+    @Test fun huntingtonPurchaseIsSpending() {
+        val r = NotificationParser.parseOrNull(Roles.BANK, "Huntington", "A $18.42 debit card purchase was made at SHELL OIL")!!
+        assertEquals(NotificationParser.Kind.EXPENSE, r.kind)
+        assertEquals(1_842L, r.amountCents)
+    }
+
     @Test fun autoDetectedOnePayIsSwitchedOnOnceThenLeftAlone() = runBlocking {
         db.watchedAppDao().insertIgnore(WatchedApp(onePay, "com.onefinance.one", Roles.IGNORE, 5, "You spent $4"))
         KnownApps.sync(db, settings)

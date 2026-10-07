@@ -45,6 +45,7 @@ object KnownApps {
         // Walmart's OnePay (formerly ONE), where many Spark drivers get paid. Deposits that name
         // Spark or Walmart count as Spark pay; card purchases are spending.
         KnownApp("com.onefinance.one", "OnePay", Roles.BANK, sinceVersion = 2),
+        KnownApp("com.huntington.m", "Huntington", Roles.BANK, sinceVersion = 3),
 
         // Bank text alerts arrive through the messaging app. Off by default; turn on if your bank texts you.
         KnownApp("com.google.android.apps.messaging", "Messages (bank texts)", Roles.IGNORE),
@@ -52,7 +53,7 @@ object KnownApps {
     )
 
     /** Bump when adding to [defaults]; tag the new entries with this number as [KnownApp.sinceVersion]. */
-    const val VERSION = 2
+    const val VERSION = 3
 
     fun incomeSourceFor(packageName: String): String? = defaults.firstOrNull { it.packageName == packageName }?.incomeSource
 
